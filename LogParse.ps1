@@ -25,7 +25,7 @@ $keywords1 = @("21081282", "220A0188", "220A0187", "220A0185", "220A0148", "1208
 # events we want
 $keywords2 = @("02081382", "02081342", "02081341", "02081381", "21081282", "220A0188", "22080581", "020A8305", "020AA182", "320A4509", "220A0187", "22084205", "22084202", "020A8402", "21080282", "22080181", "220A1182", "12084243", "12084244", "020AA142", "020AA281", "220A0185", "12084204", "22080541", "22080542", "220A0148", "21080242", "22080141", "02081781", "22084285", "12084284", "220A0749", "22081882")
 
-$debkeywords = @("M62:", "igh latency detected")
+$debkeywords = @("M62:", "High latency detected")
 $inputFile = "Search_Report_EU.txt"
 $summaryFile = "Column7_Match_Result_EU.txt"
 $summaryFile1 = "Column7_Match_Result1_EU.txt"
@@ -152,12 +152,15 @@ Get-Content $inputFile | ForEach-Object {
           $allMatches = $evtList + $debList
             
           $sortedResults = $allMatches | Sort-Object {
-            $cols = $_ -split '\s+'
-            if ($cols.Count -ge 5) {
-              # 排序依據：第 4 欄 (日期) 與 第 5 欄 (時間)
-              return "$($cols[3]) $($cols[4])"
+            # 使用正規表達式提取日期時間格式 (YY-MM-DD HH:MM:SS)
+            if ($_ -match '(?<DateTime>\d{2}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})') {
+              # 轉成 DateTime 物件進行精確的時間數值排序
+              [DateTime]::ParseExact($Matches['DateTime'], "yy-MM-dd HH:mm:ss", $null)
             }
-            return ""
+            else {
+              # 如果該行沒有日期，排在最前面或最後面
+              [DateTime]::MinValue
+            }
           }
 
           $timestamp = $fileInfo.CreationTime.ToString("yyyyMMdd_HHmmss")
