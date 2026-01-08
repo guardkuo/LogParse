@@ -62,7 +62,6 @@ Get-Content $inputFile | ForEach-Object {
     $matchCount = $Pattern_matches.Count
         
     if ($matchCount -ge $minMatchCount) {
-
       # --- 處理總結報告 (只取第一筆) ---
       $firstMatch = $Pattern_matches[0]
       $summaryList.Add("$($firstMatch.Path) : $($firstMatch.Line.Trim())")
@@ -93,18 +92,28 @@ Get-Content $inputFile | ForEach-Object {
           else { [DateTime]::MinValue }
         }
       }
+      $fileInfo = Get-Item $evtPath
+      # --- A. 提取路徑中的 Office ID (例如 OFY-508427) ---
+      $pathParts = $evtPath -split '\\'
+      $officeID = if ($pathParts.Count -ge 6) { $pathParts[5] } else { "Unknown" }
+      # --- B. 建立 Office ID 為名的資料夾 ---
+      if (!(Test-Path $officeID)) {
+        New-Item -ItemType Directory -Path $officeID -Force | Out-Null
+        write-host "建立資料夾: $officeID" -ForegroundColor Gray
+      }
+      $baseName = $fileInfo.BaseName # 不含副檔名的檔名
+      $timestamp = $fileInfo.CreationTime.ToString("yyyyMMdd_HHmmss")
+      $patternMatchFileName = "${baseName}_${timestamp}_mediaerror.txt"
+      $patternMatchOutPath = Join-Path $officeID $patternMatchFileName
+      $Pattern_matches.Line | Out-File -FilePath $patternMatchOutPath -Encoding utf8
+
+      $patternMatchFileName = "${baseName}_${timestamp}_mediaerror_sorted.txt"
+      $patternMatchOutPath = Join-Path $officeID $patternMatchFileName
+      $sortedPatternMatchResult.Line | Out-File -FilePath $patternMatchOutPath -Encoding utf8
+
       $allMatches = Select-String -Path $evtPath -Pattern $pattern1 -List -ErrorAction SilentlyContinue
             
       if ( $allMatches) {
-        $fileInfo = Get-Item $evtPath
-        # --- A. 提取路徑中的 Office ID (例如 OFY-508427) ---
-        $pathParts = $evtPath -split '\\'
-        $officeID = if ($pathParts.Count -ge 6) { $pathParts[5] } else { "Unknown" }
-        # --- B. 建立 Office ID 為名的資料夾 ---
-        if (!(Test-Path $officeID)) {
-          New-Item -ItemType Directory -Path $officeID -Force | Out-Null
-          write-host "建立資料夾: $officeID" -ForegroundColor Gray
-        }
         # --- 使用 List 物件確保資料被抓取 ---
         $evtList = [System.Collections.Generic.List[string]]::new()
         
@@ -128,11 +137,7 @@ Get-Content $inputFile | ForEach-Object {
         # --- 新增判斷邏輯：僅處理達到門檻的檔案 ---
         if ( $evtList) {
           $summary1List.Add("$($firstMatch.Path) : $($firstMatch.Line.Trim())")
-
           # --- 處理個別錯誤檔案 (完整結果) ---
-
-          $baseName = $fileInfo.BaseName # 不含副檔名的檔名
-
           $idPart = $fileInfo.Name.Split('.')[0] # 取得第一個點前面的字串
           $debFileName = "$idPart.deb.0.5.full.txt"
           $debPath = Join-Path $fileInfo.DirectoryName $debFileName
@@ -150,7 +155,6 @@ Get-Content $inputFile | ForEach-Object {
           }
           # --- 合併與排序 ---
           $allMatches = $evtList + $debList
-            
           $sortedResults = $allMatches | Sort-Object {
             # 使用正規表達式提取日期時間格式 (YY-MM-DD HH:MM:SS)
             if ($_ -match '(?<DateTime>\d{2}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})') {
@@ -163,7 +167,6 @@ Get-Content $inputFile | ForEach-Object {
             }
           }
 
-          $timestamp = $fileInfo.CreationTime.ToString("yyyyMMdd_HHmmss")
           $targetFileName = "${baseName}_${timestamp}_error.txt"
           # 完整儲存路徑：資料夾名稱 / 檔名
           $finalOutputPath = Join-Path $officeID $targetFileName
@@ -171,14 +174,6 @@ Get-Content $inputFile | ForEach-Object {
           # 將所有匹配的行內容寫入該個別檔案
           $sortedResults | Out-File -FilePath $finalOutputPath -Encoding utf8
                     
-          $patternMatchFileName = "${baseName}_${timestamp}_mediaerror.txt"
-          $patternMatchOutPath = Join-Path $officeID $patternMatchFileName
-          $Pattern_matches.Line | Out-File -FilePath $patternMatchOutPath -Encoding utf8
-
-          $patternMatchFileName = "${baseName}_${timestamp}_mediaerror_sorted.txt"
-          $patternMatchOutPath = Join-Path $officeID $patternMatchFileName
-          $sortedPatternMatchResult.Line | Out-File -FilePath $patternMatchOutPath -Encoding utf8
-
           # [新加入] 備份原始 .evt 檔
           # 目的地檔名維持原樣，但存放在 $officeID 下
           Copy-Item -Path $evtPath -Destination (Join-Path $officeID "${BaseName}_${timestamp}.txt") -Force
@@ -193,26 +188,7 @@ Get-Content $inputFile | ForEach-Object {
         }
       }
       else {
-        $fileInfo = Get-Item $evtPath
-        # --- A. 提取路徑中的 Office ID (例如 OFY-508427) ---
-        $pathParts = $evtPath -split '\\'
-        $officeID = if ($pathParts.Count -ge 6) { $pathParts[5] } else { "Unknown" }
-        # --- B. 建立 Office ID 為名的資料夾 ---
-        if (!(Test-Path $officeID)) {
-          New-Item -ItemType Directory -Path $officeID -Force | Out-Null
-          write-host "建立資料夾: $officeID" -ForegroundColor Gray
-        }
-
-        $timestamp = $fileInfo.CreationTime.ToString("yyyyMMdd_HHmmss")
-        $patternMatchFileName = "${baseName}_${timestamp}_mediaerror.txt"
-        $patternMatchOutPath = Join-Path $officeID $patternMatchFileName
-        $Pattern_matches.Line | Out-File -FilePath $patternMatchOutPath -Encoding utf8
-
-        $patternMatchFileName = "${baseName}_${timestamp}_mediaerror_sorted.txt"
-        $patternMatchOutPath = Join-Path $officeID $patternMatchFileName
-        $sortedPatternMatchResult.Line | Out-File -FilePath $patternMatchOutPath -Encoding utf8
         write-host "[跳過] 檔案: $($filePath) (Drive還沒失效)" -ForegroundColor Gray
-        write-host "[成功] $officeID \ $idPart -> 檔案已儲存" -ForegroundColor Green
       }
     }
     else {
