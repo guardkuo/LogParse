@@ -28,6 +28,8 @@ write-host "開始分析檔案 (門檻：至少需包含 $minMatchCount 行匹�
 # 準備存儲總結結果的清單
 $summaryList = New-Object System.Collections.Generic.List[string]
 $summary1List = New-Object System.Collections.Generic.List[string]
+$errorlogList = New-Object System.Collections.Generic.List[string]
+$logList = New-Object System.Collections.Generic.List[string]
 
 # 2. 逐一處理 Search_Report.txt 中的檔案
 Get-Content $inputFile | ForEach-Object {
@@ -176,6 +178,7 @@ Get-Content $inputFile | ForEach-Object {
         $configfilePath = Join-Path $fileInfo.DirectoryName $configfileName
         if (-not (Test-Path $configFilePath)) {
           Write-Error "找不到檔案: $configFilePath"
+          $errorlogList.Add("找不到檔案: $configFilePath")
           return
         }
       }
@@ -222,10 +225,20 @@ Get-Content $inputFile | ForEach-Object {
 
 
       Copy-Item -Path $configfilePath -Destination (Join-Path $officeID "${idPart}_config_${timestamp}.txt") -Force
-      # 備份 xml config file. 含硬碟資訊     
+      # 備份 xml config file. 含硬碟資訊
       $configfileName = "$idPart$conf.xml"
       $configfilePath = Join-Path $fileInfo.DirectoryName $configfileName
-      Copy-Item -Path $configfilePath -Destination (Join-Path $officeID "${idPart}_config_${timestamp}.xml") -Force
+      if (-not (Test-Path $configFilePath)) {
+        $configfileName = "config.xml"
+        $configfilePath = Join-Path $fileInfo.DirectoryName $configfileName
+        if (-not (Test-Path $configFilePath)) {
+          Write-Error "找不到檔案: $configFilePath"
+          $errorlogList.Add("找不到檔案: $configFilePath")
+        }
+        else {
+          Copy-Item -Path $configfilePath -Destination (Join-Path $officeID "${idPart}_config_${timestamp}.xml") -Force
+        }
+      }
 
       $baseName = $fileInfo.BaseName # 不含副檔名的檔名
       $timestamp = $fileInfo.CreationTime.ToString("yyyyMMdd_HHmmss")
@@ -270,7 +283,7 @@ Get-Content $inputFile | ForEach-Object {
       }
 
       $sortedPatternMatchResult.Line | Out-File -FilePath $patternMatchOutPath -Append -Encoding utf8
-      $reportOutput | Out-File -FilePath $patternMatchOutPath -Append -Encoding utf8
+      $SortedDiskList  | Format-Table -AutoSize | Out-File -FilePath $patternMatchOutPath -Append -Encoding utf8
 
       # 定義檔名
 
@@ -281,9 +294,9 @@ Get-Content $inputFile | ForEach-Object {
       $sortedFinalReport | Select-Object DriveID, StartSector, GB_Zone, ErrorCount, StartTime, EndTime, Duration | 
       Export-Csv -Path $csvFilePath -NoTypeInformation -Encoding UTF8
 
-      
-      Write-Host "Excel 報表已儲存至: $csvFileName" -ForegroundColor Green
-
+      if ($DEBUG -eq 1) {
+        Write-Host "Excel 報表已儲存至: $csvFileName" -ForegroundColor Green
+      }
       $allMatches = Select-String -Path $evtPath -Pattern $pattern1 -List -ErrorAction SilentlyContinue
             
       if ( $allMatches) {
@@ -361,17 +374,26 @@ Get-Content $inputFile | ForEach-Object {
             $debbaseName = $debFileInfo.BaseName # 不含副檔名的檔名
             Copy-Item -Path $debPath -Destination (Join-Path $officeID "${debbaseName}_${timestamp}.txt") -Force
           }
-          write-host "[成功] $officeID \ $idPart -> 檔案已儲存" -ForegroundColor Green
+          if ($DEBUG -eq 1) {
+            write-host "[成功] $officeID \ $idPart -> 檔案已儲存" -ForegroundColor Green
+          }
+          $logList.Add("[成功] $officeID \ $idPart -> 檔案已儲存")
         }
       }
       else {
-        write-host "[跳過] 檔案: $($filePath) (Drive還沒失效)" -ForegroundColor Gray
+        if ($DEBUG -eq 1) {
+          write-host "[跳過] 檔案: $($evtPath) (Drive還沒失效)" -ForegroundColor Gray
+        }
+        $logList.Add("[跳過] 檔案: $($evtPath) (Drive還沒失效)")
       }
     }
     else {
       # 選項：可以顯示哪些檔案被忽略了
       if ($matchCount -gt 0) {
-        write-host "[跳過] 檔案: $($filePath) (僅 $matchCount 行，未達門檻)" -ForegroundColor Gray
+        if ($DEBUG -eq 1) {
+          write-host "[跳過] 檔案: $($evtPath) (僅 $matchCount 行，未達門檻)" -ForegroundColor Gray
+        }
+        $logList.Add("[跳過] 檔案: $($evtPath) (僅 $matchCount 行，未達門檻)")
       }
     }
   }
@@ -390,4 +412,11 @@ else {
   write-host "`n未發現任何符合條件的檔案。" -ForegroundColor Yellow
 }
 
+if ($logList.Count -gt 0) {
+  $logList | Out-File -FilePath $logFile -Encoding utf8
+}
+
+if ($errorlogList.Count -gt 0) {
+  $errorlogList | Out-File -FilePath $errrologFile -Encoding utf8
+}
 pause

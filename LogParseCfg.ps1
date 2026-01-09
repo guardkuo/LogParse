@@ -40,6 +40,8 @@ $debkeywordPattern = ($debkeywords | ForEach-Object { [regex]::Escape($_) }) -jo
 $inputFile = "Search_Report_JP.txt"
 $summaryFile = "Column7_Match_Result_JP.txt"
 $summaryFile1 = "Column7_Match_Result1_JP.txt"
+$errrologFile = "error.log"
+$logFile= "LogPares.log"
 $minMatchCount = 20  # 設定門檻：少於 20 行則忽略
 
 # 定義 1GB 所佔用的 Sector 數量 (以 512-byte sector 為例)
