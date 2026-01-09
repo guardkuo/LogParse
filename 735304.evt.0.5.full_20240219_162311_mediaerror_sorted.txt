@@ -1,0 +1,259 @@
+=== Disk Media Error Analysis Report (Grouped by ID) ===
+Generated on: 01/08/2026 19:13:59
+Total number of damaged GB areas: 33
+
+>>> Drive ID: 4 (Total Events: 1)
+---------------------------------
+
+StartSector GB_Zone ErrorCount StartTime               EndTime                 Duration
+----------- ------- ---------- ---------               -------                 --------
+0xB42AE340  GB_1441          1 2022/9/21 上午 10:45:10 2022/9/21 上午 10:45:10 0 days
+
+
+
+>>> Drive ID: 6 (Total Events: 2)
+---------------------------------
+
+StartSector GB_Zone ErrorCount StartTime               EndTime                 Duration
+----------- ------- ---------- ---------               -------                 --------
+0x1FF668E0  GB_255           1 2022/2/9 上午 06:35:33  2022/2/9 上午 06:35:33  0 days
+0x2D41BE8F8 GB_5792          1 2022/5/31 下午 02:28:58 2022/5/31 下午 02:28:58 0 days
+
+
+
+>>> Drive ID: 8 (Total Events: 4)
+---------------------------------
+
+StartSector GB_Zone  ErrorCount StartTime                EndTime                  Duration
+----------- -------  ---------- ---------                -------                  --------
+0x1D74BF008 GB_3770           1 2022/6/29 上午 12:28:08  2022/6/29 上午 12:28:08  0 days
+0x1DFEB4748 GB_3839           1 2021/12/28 上午 01:51:14 2021/12/28 上午 01:51:14 0 days
+0x2A6511BF8 GB_5426           1 2022/3/21 下午 04:51:44  2022/3/21 下午 04:51:44  0 days
+0x57240F9B8 GB_11154          1 2023/12/10 下午 08:45:01 2023/12/10 下午 08:45:01 0 days
+
+
+
+>>> Drive ID: 14 (Total Events: 5)
+----------------------------------
+
+StartSector GB_Zone ErrorCount StartTime               EndTime                 Duration
+----------- ------- ---------- ---------               -------                 --------
+0xCFB5D268  GB_1661          1 2021/6/14 上午 06:04:41 2021/6/14 上午 06:04:41 0 days
+0xD02569A0  GB_1665        112 2021/6/13 下午 08:39:27 2021/6/15 上午 06:03:09 1.4 days
+0xD586C1F8  GB_1708          2 2021/6/14 上午 06:14:47 2021/6/14 上午 06:15:08 0 days
+0xD5BE84E0  GB_1709          2 2021/6/14 上午 06:15:45 2021/6/14 上午 06:16:10 0 days
+0xD5F64678  GB_1711          3 2021/6/14 上午 06:18:51 2021/6/14 上午 06:19:20 0 days
+
+
+
+>>> Drive ID: 17 (Total Events: 1)
+----------------------------------
+
+StartSector GB_Zone ErrorCount StartTime              EndTime                Duration
+----------- ------- ---------- ---------              -------                --------
+0x92477498  GB_1170          1 2023/8/5 上午 12:19:45 2023/8/5 上午 12:19:45 0 days
+
+
+
+>>> Drive ID: 22 (Total Events: 4)
+----------------------------------
+
+StartSector GB_Zone ErrorCount StartTime                EndTime                  Duration
+----------- ------- ---------- ---------                -------                  --------
+0x1ABAA058  GB_213           1 2023/8/22 上午 02:35:14  2023/8/22 上午 02:35:14  0 days
+0x37AF9F98  GB_445           1 2023/4/11 下午 04:06:03  2023/4/11 下午 04:06:03  0 days
+0x37AFA010  GB_445           1 2022/12/24 上午 12:23:54 2022/12/24 上午 12:23:54 0 days
+0x37AFA018  GB_445           2 2023/1/5 下午 12:27:42   2023/1/5 下午 12:27:56   0 days
+
+
+
+>>> Drive ID: 23 (Total Events: 15)
+-----------------------------------
+
+StartSector GB_Zone  ErrorCount StartTime                EndTime                  Duration
+----------- -------  ---------- ---------                -------                  --------
+0x1E7A07E8  GB_243            1 2024/2/18 上午 10:49:04  2024/2/18 上午 10:49:04  0 days
+0x5D0A4A90  GB_744            1 2024/2/17 上午 10:39:03  2024/2/17 上午 10:39:03  0 days
+0x995D9198  GB_1226           1 2024/2/18 上午 04:37:05  2024/2/18 上午 04:37:05  0 days
+0x99919630  GB_1228           1 2024/2/18 下午 01:05:07  2024/2/18 下午 01:05:07  0 days
+0x33B8E8160 GB_6620           1 2022/8/17 上午 08:09:50  2022/8/17 上午 08:09:50  0 days
+0x3948F4C38 GB_7332           1 2022/10/31 下午 05:38:31 2022/10/31 下午 05:38:31 0 days
+0x5B4430C18 GB_11682          1 2023/3/9 上午 12:08:43   2023/3/9 上午 12:08:43   0 days
+0x5B8E3AC48 GB_11719          1 2023/5/18 上午 02:01:49  2023/5/18 上午 02:01:49  0 days
+0x5C7964D30 GB_11836          1 2023/7/30 上午 02:23:59  2023/7/30 上午 02:23:59  0 days
+0x5C7B25248 GB_11837          1 2023/7/14 下午 05:23:06  2023/7/14 下午 05:23:06  0 days
+0x5CA4AF4C0 GB_11858          1 2023/9/2 下午 06:15:41   2023/9/2 下午 06:15:41   0 days
+0x5CA595D10 GB_11858          1 2023/8/6 上午 01:56:16   2023/8/6 上午 01:56:16   0 days
+0x5E380BA70 GB_12060          1 2023/4/20 下午 05:46:45  2023/4/20 下午 05:46:45  0 days
+0x5E386E970 GB_12060          1 2023/5/5 下午 07:18:50   2023/5/5 下午 07:18:50   0 days
+0x63120FA10 GB_12681          1 2023/5/10 上午 01:47:16  2023/5/10 上午 01:47:16  0 days
+
+
+
+>>> Drive ID: 24 (Total Events: 5)
+----------------------------------
+
+StartSector GB_Zone ErrorCount StartTime                EndTime                  Duration
+----------- ------- ---------- ---------                -------                  --------
+0x25480C00  GB_298           2 2021/11/3 下午 08:11:40  2021/11/3 下午 08:11:49  0 days
+0x39799180  GB_459           1 2023/7/26 上午 03:07:54  2023/7/26 上午 03:07:54  0 days
+0x9DF62650  GB_1263          1 2023/11/21 上午 04:57:34 2023/11/21 上午 04:57:34 0 days
+0x14374E538 GB_2587          1 2023/9/12 上午 01:01:14  2023/9/12 上午 01:01:14  0 days
+0x1F0164A00 GB_3968          1 2023/7/26 下午 09:20:38  2023/7/26 下午 09:20:38  0 days
+
+
+
+ 17939  IN 22-09-21 10:45:10 [A ] 02081382 CHL:12 ID:4 (JBODId:0 SlotNum:5)  Drive INFORM: Media Error Encountered - 0xB42AE340 (03/11/00)
+ 12479  IN 22-02-09 06:35:33 [A ] 02081382 CHL:12 ID:6 (JBODId:0 SlotNum:7)  Drive INFORM: Media Error Encountered - 0x1FF668E0 (03/11/00)
+ 15717  IN 22-05-31 14:28:58 [A ] 02081382 CHL:12 ID:6 (JBODId:0 SlotNum:7)  Drive INFORM: Media Error Encountered - 0x2D41BE8F8 (03/16/00)
+ 16151  IN 22-06-29 00:28:08 [A ] 02081382 CHL:12 ID:8 (JBODId:0 SlotNum:9)  Drive INFORM: Media Error Encountered - 0x1D74BF008 (03/11/00)
+ 10760  IN 21-12-28 01:51:14 [A ] 02081382 CHL:12 ID:8 (JBODId:0 SlotNum:9)  Drive INFORM: Media Error Encountered - 0x1DFEB4748 (03/11/00)
+ 13976  IN 22-03-21 16:51:44 [A ] 02081382 CHL:12 ID:8 (JBODId:0 SlotNum:9)  Drive INFORM: Media Error Encountered - 0x2A6511BF8 (03/16/00)
+ 29647  IN 23-12-10 20:45:01 [A ] 02081382 CHL:12 ID:8 (JBODId:0 SlotNum:9)  Drive INFORM: Media Error Encountered - 0x57240F9B8 (03/11/00)
+ 4974   IN 21-06-14 06:04:41 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xCFB5D268 (03/11/00)
+ 4927   IN 21-06-13 20:39:27 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0266BB8 (03/11/00)
+ 4928   IN 21-06-13 20:39:33 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0266BB0 (03/11/00)
+ 4929   IN 21-06-13 22:14:03 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0267E50 (03/11/00)
+ 4937   IN 21-06-13 22:37:04 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0268370 (03/11/00)
+ 4951   IN 21-06-13 23:23:59 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD02687D0 (03/11/00)
+ 4952   IN 21-06-13 23:24:12 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD02687D8 (03/11/00)
+ 4953   IN 21-06-13 23:26:02 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0269328 (03/16/00)
+ 4954   IN 21-06-13 23:45:36 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0268AF8 (03/16/00)
+ 4958   IN 21-06-14 00:30:19 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0269190 (03/11/00)
+ 4960   IN 21-06-14 00:30:42 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0269190 (03/11/00)
+ 4968   IN 21-06-14 02:23:15 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD026A128 (03/11/00)
+ 4969   IN 21-06-14 03:04:44 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD02569A0 (03/11/00)
+ 4980   IN 21-06-14 06:10:29 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0287878 (03/11/00)
+ 5013   IN 21-06-14 11:48:48 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD025BCF0 (03/16/00)
+ 5014   IN 21-06-14 12:20:02 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD025D5F8 (03/11/00)
+ 5015   IN 21-06-14 12:20:43 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD025D618 (03/16/00)
+ 5016   IN 21-06-14 12:21:02 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD025D608 (03/11/00)
+ 5017   IN 21-06-14 12:58:23 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD025E740 (03/16/00)
+ 5018   IN 21-06-14 13:57:16 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0260060 (03/11/00)
+ 5019   IN 21-06-14 13:57:31 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0260068 (03/11/00)
+ 5021   IN 21-06-14 14:04:39 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD02605C0 (03/16/00)
+ 5022   IN 21-06-14 14:09:48 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD02606E8 (03/11/00)
+ 5023   IN 21-06-14 14:21:09 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0260CA0 (03/16/00)
+ 5024   IN 21-06-14 14:30:39 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0261048 (03/11/00)
+ 5025   IN 21-06-14 14:30:53 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0261040 (03/11/00)
+ 5026   IN 21-06-14 14:41:50 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0261418 (03/11/00)
+ 5027   IN 21-06-14 14:42:59 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0261568 (03/16/00)
+ 5028   IN 21-06-14 15:21:05 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0262558 (03/11/00)
+ 5029   IN 21-06-14 15:32:55 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0262B98 (03/11/00)
+ 5030   IN 21-06-14 15:51:30 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0263370 (03/11/00)
+ 5031   IN 21-06-14 15:55:11 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0263408 (03/16/00)
+ 5032   IN 21-06-14 16:06:24 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0269448 (03/11/00)
+ 5033   IN 21-06-14 16:06:38 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0269450 (03/11/00)
+ 5037   IN 21-06-14 17:21:38 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD026D478 (03/11/00)
+ 5038   IN 21-06-14 17:28:09 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD026D7C8 (03/11/00)
+ 5039   IN 21-06-14 17:28:21 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD026D7B0 (03/16/00)
+ 5040   IN 21-06-14 17:38:12 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD026DC78 (03/11/00)
+ 5041   IN 21-06-14 17:47:11 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD026E0D8 (03/11/00)
+ 5043   IN 21-06-14 17:51:05 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD026E278 (03/11/00)
+ 5045   IN 21-06-14 18:06:44 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD026E868 (03/11/00)
+ 5046   IN 21-06-14 18:14:42 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD026EC18 (03/11/00)
+ 5048   IN 21-06-14 18:15:16 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD026EC18 (03/11/00)
+ 5049   IN 21-06-14 18:23:14 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD026EFF0 (03/11/00)
+ 5050   IN 21-06-14 18:42:02 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD026F7B0 (03/11/00)
+ 5052   IN 21-06-14 18:51:26 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD026FB28 (03/11/00)
+ 5053   IN 21-06-14 19:04:03 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0270028 (03/11/00)
+ 5054   IN 21-06-14 19:04:28 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0270030 (03/11/00)
+ 5057   IN 21-06-14 19:49:42 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0271000 (03/16/00)
+ 5058   IN 21-06-14 20:04:38 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD02716E0 (03/11/00)
+ 5059   IN 21-06-14 20:05:01 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD02716C8 (03/11/00)
+ 5060   IN 21-06-14 20:15:53 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0271A78 (03/11/00)
+ 5061   IN 21-06-14 20:16:14 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0271A90 (03/11/00)
+ 5062   IN 21-06-14 20:29:51 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0271EE8 (03/11/00)
+ 5064   IN 21-06-14 21:36:43 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0273538 (03/16/00)
+ 5066   IN 21-06-14 21:37:07 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0273530 (03/11/00)
+ 5068   IN 21-06-14 22:07:19 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0273F88 (03/11/00)
+ 5069   IN 21-06-14 22:07:40 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0273F78 (03/11/00)
+ 5072   IN 21-06-14 22:17:28 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0274258 (03/11/00)
+ 5073   IN 21-06-14 22:17:54 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0274268 (03/11/00)
+ 5074   IN 21-06-14 22:22:26 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD02743D8 (03/11/00)
+ 5075   IN 21-06-14 22:23:28 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD02744B8 (03/11/00)
+ 5076   IN 21-06-14 22:25:38 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD02744E0 (03/11/00)
+ 5077   IN 21-06-14 22:49:32 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0274C40 (03/16/00)
+ 5079   IN 21-06-14 22:49:57 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0274C48 (03/11/00)
+ 5081   IN 21-06-14 22:52:36 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0274D58 (03/16/00)
+ 5083   IN 21-06-14 22:53:00 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0274D58 (03/16/00)
+ 5085   IN 21-06-14 23:05:27 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0275138 (03/11/00)
+ 5086   IN 21-06-14 23:05:57 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0275118 (03/11/00)
+ 5087   IN 21-06-14 23:06:54 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0275140 (03/11/00)
+ 5088   IN 21-06-14 23:15:10 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0275448 (03/16/00)
+ 5090   IN 21-06-14 23:50:29 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0275DA0 (03/11/00)
+ 5091   IN 21-06-15 00:30:44 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0276628 (03/11/00)
+ 5093   IN 21-06-15 00:31:14 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0276620 (03/11/00)
+ 5094   IN 21-06-15 00:57:52 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0276CA0 (03/11/00)
+ 5095   IN 21-06-15 01:03:15 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0276D60 (03/16/00)
+ 5096   IN 21-06-15 01:13:20 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0276FE8 (03/11/00)
+ 5097   IN 21-06-15 01:37:10 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0277490 (03/11/00)
+ 5098   IN 21-06-15 01:37:40 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0277488 (03/16/00)
+ 5099   IN 21-06-15 01:41:46 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD02775E0 (03/16/00)
+ 5100   IN 21-06-15 01:55:36 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD02778B8 (03/11/00)
+ 5101   IN 21-06-15 01:57:16 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD02778F0 (03/0C/02)
+ 5103   IN 21-06-15 02:03:13 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0277970 (03/16/00)
+ 5104   IN 21-06-15 02:07:26 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0277A18 (03/11/00)
+ 5105   IN 21-06-15 02:18:56 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0277CF0 (03/11/00)
+ 5107   IN 21-06-15 02:55:48 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0278400 (03/11/00)
+ 5108   IN 21-06-15 02:59:34 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0278410 (03/11/00)
+ 5111   IN 21-06-15 03:36:02 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0278CF0 (03/11/00)
+ 5112   IN 21-06-15 04:04:03 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0279168 (03/16/00)
+ 5113   IN 21-06-15 04:05:50 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0279258 (03/11/00)
+ 5114   IN 21-06-15 04:09:55 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0279360 (03/11/00)
+ 5115   IN 21-06-15 04:22:35 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0279520 (03/11/00)
+ 5116   IN 21-06-15 04:32:34 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0279828 (03/16/00)
+ 5117   IN 21-06-15 04:32:57 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0279848 (03/16/00)
+ 5118   IN 21-06-15 04:34:40 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD02798D0 (03/11/00)
+ 5119   IN 21-06-15 04:35:34 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD02798E0 (03/11/00)
+ 5120   IN 21-06-15 04:35:55 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD02798E8 (03/11/00)
+ 5121   IN 21-06-15 04:37:06 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0279900 (03/11/00)
+ 5122   IN 21-06-15 04:49:30 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0279C98 (03/11/00)
+ 5123   IN 21-06-15 04:54:49 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD0279D58 (03/11/00)
+ 5124   IN 21-06-15 05:10:47 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD027A208 (03/11/00)
+ 5125   IN 21-06-15 05:15:38 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD027A3F0 (03/11/00)
+ 5126   IN 21-06-15 05:19:38 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD027A428 (03/11/00)
+ 5127   IN 21-06-15 05:30:24 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD027A7E0 (03/16/00)
+ 5128   IN 21-06-15 05:40:20 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD027AB00 (03/11/00)
+ 5129   IN 21-06-15 05:44:41 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD027ACF0 (03/11/00)
+ 5130   IN 21-06-15 05:48:39 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD027AD40 (03/11/00)
+ 5131   IN 21-06-15 05:48:43 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD027ADC8 (03/11/00)
+ 5133   IN 21-06-15 05:50:27 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD027AEB8 (03/16/00)
+ 5135   IN 21-06-15 05:58:50 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD027B1B8 (03/11/00)
+ 5136   IN 21-06-15 05:59:48 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD027B1E8 (03/16/00)
+ 5137   IN 21-06-15 06:02:49 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD027B260 (03/11/00)
+ 5138   IN 21-06-15 06:03:09 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD027B268 (03/16/00)
+ 4983   IN 21-06-14 06:14:47 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD586C1F8 (03/11/00)
+ 4985   IN 21-06-14 06:15:08 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD586C8A8 (03/11/00)
+ 4987   IN 21-06-14 06:15:45 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD5BE84E0 (03/11/00)
+ 4989   IN 21-06-14 06:16:10 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD5BE93E0 (03/11/00)
+ 4995   IN 21-06-14 06:18:51 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD5F64678 (03/11/00)
+ 4997   IN 21-06-14 06:19:12 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD5F64D40 (03/11/00)
+ 4998   IN 21-06-14 06:19:20 [A ] 02081382 CHL:12 ID:14 (JBODId:0 SlotNum:15)  Drive INFORM: Media Error Encountered - 0xD5F65150 (03/11/00)
+ 26711  IN 23-08-05 00:19:45 [A ] 02081382 CHL:12 ID:17 (JBODId:0 SlotNum:18)  Drive INFORM: Media Error Encountered - 0x92477498 (03/11/00)
+ 27226  IN 23-08-22 02:35:14 [A ] 02081382 CHL:12 ID:22 (JBODId:0 SlotNum:23)  Drive INFORM: Media Error Encountered - 0x1ABAA058 (03/11/00)
+ 19888  IN 22-12-24 00:23:54 [A ] 02081382 CHL:12 ID:22 (JBODId:0 SlotNum:23)  Drive INFORM: Media Error Encountered - 0x37AFA010 (03/11/00)
+ 20170  IN 23-01-05 12:27:42 [A ] 02081382 CHL:12 ID:22 (JBODId:0 SlotNum:23)  Drive INFORM: Media Error Encountered - 0x37AFA018 (03/11/00)
+ 20171  IN 23-01-05 12:27:56 [A ] 02081382 CHL:12 ID:22 (JBODId:0 SlotNum:23)  Drive INFORM: Media Error Encountered - 0x37AFA020 (03/11/00)
+ 22877  IN 23-04-11 16:06:03 [A ] 02081382 CHL:12 ID:22 (JBODId:0 SlotNum:23)  Drive INFORM: Media Error Encountered - 0x37AF9F98 (03/11/00)
+ 30310  IN 24-02-18 10:49:04 [A ] 02081382 CHL:12 ID:23 (JBODId:0 SlotNum:24)  Drive INFORM: Media Error Encountered - 0x1E7A07E8 (03/11/00)
+ 30295  IN 24-02-17 10:39:03 [A ] 02081382 CHL:12 ID:23 (JBODId:0 SlotNum:24)  Drive INFORM: Media Error Encountered - 0x5D0A4A90 (03/11/00)
+ 30308  IN 24-02-18 04:37:05 [A ] 02081382 CHL:12 ID:23 (JBODId:0 SlotNum:24)  Drive INFORM: Media Error Encountered - 0x995D9198 (03/11/00)
+ 30312  IN 24-02-18 13:05:07 [A ] 02081382 CHL:12 ID:23 (JBODId:0 SlotNum:24)  Drive INFORM: Media Error Encountered - 0x99919630 (03/11/00)
+ 17015  IN 22-08-17 08:09:50 [A ] 02081382 CHL:12 ID:23 (JBODId:0 SlotNum:24)  Drive INFORM: Media Error Encountered - 0x33B8E8160 (03/11/00)
+ 18749  IN 22-10-31 17:38:31 [A ] 02081382 CHL:12 ID:23 (JBODId:0 SlotNum:24)  Drive INFORM: Media Error Encountered - 0x3948F4C38 (03/11/00)
+ 21804  IN 23-03-09 00:08:43 [A ] 02081382 CHL:12 ID:23 (JBODId:0 SlotNum:24)  Drive INFORM: Media Error Encountered - 0x5B4430C18 (03/11/00)
+ 24049  IN 23-05-18 02:01:49 [A ] 02081382 CHL:12 ID:23 (JBODId:0 SlotNum:24)  Drive INFORM: Media Error Encountered - 0x5B8E3AC48 (03/11/00)
+ 26499  IN 23-07-30 02:23:59 [A ] 02081382 CHL:12 ID:23 (JBODId:0 SlotNum:24)  Drive INFORM: Media Error Encountered - 0x5C7964D30 (03/11/00)
+ 25928  IN 23-07-14 17:23:06 [A ] 02081382 CHL:12 ID:23 (JBODId:0 SlotNum:24)  Drive INFORM: Media Error Encountered - 0x5C7B25248 (03/11/00)
+ 26747  IN 23-08-06 01:56:16 [A ] 02081382 CHL:12 ID:23 (JBODId:0 SlotNum:24)  Drive INFORM: Media Error Encountered - 0x5CA595D10 (03/11/00)
+ 27555  IN 23-09-02 18:15:41 [A ] 02081382 CHL:12 ID:23 (JBODId:0 SlotNum:24)  Drive INFORM: Media Error Encountered - 0x5CA4AF4C0 (03/11/00)
+ 23183  IN 23-04-20 17:46:45 [A ] 02081382 CHL:12 ID:23 (JBODId:0 SlotNum:24)  Drive INFORM: Media Error Encountered - 0x5E380BA70 (03/11/00)
+ 23548  IN 23-05-05 19:18:50 [A ] 02081382 CHL:12 ID:23 (JBODId:0 SlotNum:24)  Drive INFORM: Media Error Encountered - 0x5E386E970 (03/11/00)
+ 23702  IN 23-05-10 01:47:16 [A ] 02081382 CHL:12 ID:23 (JBODId:0 SlotNum:24)  Drive INFORM: Media Error Encountered - 0x63120FA10 (03/11/00)
+ 9387   IN 21-11-03 20:11:40 [A ] 02081382 CHL:12 ID:24 (JBODId:0 SlotNum:25)  Drive INFORM: Media Error Encountered - 0x25480C00 (03/11/00)
+ 9388   IN 21-11-03 20:11:49 [A ] 02081382 CHL:12 ID:24 (JBODId:0 SlotNum:25)  Drive INFORM: Media Error Encountered - 0x25480D18 (03/11/00)
+ 26351  IN 23-07-26 03:07:54 [A ] 02081382 CHL:12 ID:24 (JBODId:0 SlotNum:25)  Drive INFORM: Media Error Encountered - 0x39799180 (03/11/00)
+ 29413  IN 23-11-21 04:57:34 [A ] 02081382 CHL:12 ID:24 (JBODId:0 SlotNum:25)  Drive INFORM: Media Error Encountered - 0x9DF62650 (03/11/00)
+ 27840  IN 23-09-12 01:01:14 [A ] 02081382 CHL:12 ID:24 (JBODId:0 SlotNum:25)  Drive INFORM: Media Error Encountered - 0x14374E538 (03/11/00)
+ 26370  IN 23-07-26 21:20:38 [A ] 02081382 CHL:12 ID:24 (JBODId:0 SlotNum:25)  Drive INFORM: Media Error Encountered - 0x1F0164A00 (03/11/00)
