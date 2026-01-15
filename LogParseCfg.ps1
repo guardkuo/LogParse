@@ -42,11 +42,11 @@ $DrvErrPattern = "^\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+($keywordDrvErrPattern
 $debkeywordPattern = ($debkeywords | ForEach-Object { [regex]::Escape($_) }) -join '|'
 
 
-$inputFile = "Search_Report_JP.txt"
-$summaryFile = "Column7_Match_Result_JP.txt"
-$summaryFile1 = "Column7_Match_Result1_JP.txt"
+$inputFile = "Search_Report.txt"
+$summaryFile = "Match_Result.txt"
+$summaryFile1 = "All_Match_Result.txt"
 $errrologFile = "error.log"
-$logFile= "LogParse.log"
+$logFile = "LogParse.log"
 $analysisFile = "AnalysisReport.txt"
 $minMatchCount = 20  # 設定門檻：少於 20 行則忽略
 

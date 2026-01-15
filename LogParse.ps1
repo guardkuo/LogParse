@@ -34,6 +34,25 @@ function UpdateMediaErrorBadSector ($Curr, $Entries) {
   $Curr.Duration = "$([Math]::Round($duration.TotalMinutes, 1)) mins"
 }
 
+function Set-TicketMap($TicketMap, $QMS, $SerialNumber) {
+  foreach ($ticket in $TicketMap) {
+    #write-host "$($ticket.QMS) $($ticket.SN)"
+    #write-host "$($QMS) $($SerialNumber)"
+    if ($ticket.QMS -eq $QMS -and $ticket.SN -eq $SerialNumber) {
+      #write-host "duplicated qms ticket!"
+      return $null
+    }
+  }
+  return [PSCustomObject]@{
+    QMS                   = $QMS
+    SN                    = $SerialNumber
+    numOfFailDrv          = 0
+    numOfFailDrvBeforeErr = 0
+    numOfFailDrvAfterErr  = 0
+    DiskList              = @{}
+  }
+}
+
 # --- [強化] 自動建立磁碟對照表函式 ---
 function Get-DiskMap {
   # 2. 讀取檔案內容
@@ -65,7 +84,7 @@ function Get-OfficeID {
   if ($Path -match "[A-Za-z]+-\d+") {
     return $Matches[0]
   }
-  return "Unknown"
+  return "XXX-Unknown"
 }
 
 function DateTime-Before ([DateTime]$Time1, [DateTime]$Time2) {
@@ -87,7 +106,7 @@ else {
 }
 
 write-host "開始分析檔案 (門檻：至少需包含 $minMatchCount 筆相關錯誤)..." -ForegroundColor Cyan
-
+$AllQMSTicketDB = New-Object System.Collections.Generic.List[string]
 # 準備存儲總結結果的清單
 $summaryList = New-Object System.Collections.Generic.List[string]
 $summary1List = New-Object System.Collections.Generic.List[string]
@@ -110,8 +129,8 @@ Get-Content $inputFile | ForEach-Object {
         
     if ($matchCount -ge $minMatchCount) {
       $fileInfo = Get-Item $evtPath
+      $officeID = Get-OfficeID $evtPath
       $idPart = $fileInfo.Name.Split('.')[0] # 取得第一個點前面的字串
-      
       
       # 建立 Disk Map, 備份 txt config file. 含硬碟資訊
       $conf = "_Conf"
@@ -127,7 +146,13 @@ Get-Content $inputFile | ForEach-Object {
           $errorlogList.Add("找不到檔案: $configFilePath")
           return
         }
-      } 
+      }
+
+      $thisTicket = Set-TicketMap -TicketMap $AllQMSTicketDB -QMS $officeID -SerialNumber $idPart
+      if ( $thisTicket -eq $null) {
+        return
+      }
+
       $SortedDiskList = Get-DiskMap -configPath $configfilePath
 
       # 6. 建立最終的 $DiskMap (以 ID 為 Key 的 Hashtable)
@@ -304,9 +329,6 @@ Get-Content $inputFile | ForEach-Object {
 
       $drvFailedMatches = Select-String -Path $evtPath -Pattern $pattern1 -ErrorAction SilentlyContinue
 
-
-      # --- A. 提取路徑中的 Office ID (例如 OFY-508427) ---
-      $officeID = Get-OfficeID $evtPath
       # --- B. 建立 Office ID 為名的資料夾 ---
       if ( -not $drvFailedMatches) {
         $OutPutDir = "NoDrvFail\" + $officeID
@@ -409,10 +431,12 @@ Get-Content $inputFile | ForEach-Object {
       $lastTime = $null
       $num = 0
       $startIndex = 0
+      $FailureDrvList = New-Object System.Collections.Generic.List[string]
       $sortedFinalAnalysisReport | ForEach-Object {
         if ($DEBUG -eq 1) {
           write-host "ID: $($_.DriveID) GB: $($_.StartGB) $($_.StartTime)" -ForegroundColor Gray
         }
+        #$logList.Add("        ID: $($_.DriveID) GB: $($_.StartGB) $($_.StartTime)")
         if ($ScsiId -eq -1) {
           $ScsiId = $_.DriveID
           $BadSector = 1
@@ -457,6 +481,7 @@ Get-Content $inputFile | ForEach-Object {
             $currentVendor = $DiskMap[$ScsiId.ToString()]
             if ($currentVendor) {
               $analysisResultList.Add("    $($currentVendor)");
+              $FailureDrvList += $currentVendor
             }
             $logList.Add("           $($_.StartTime | Get-Date -Format "yy-MM-dd HH-mm-ss") ID:$($ScsiId)     Drive Failure")
             $analysisResultList.Add("           $($_.StartTime | Get-Date -Format "yy-MM-dd HH-mm-ss") ID:$($ScsiId)     Drive Failure")
@@ -537,6 +562,11 @@ Get-Content $inputFile | ForEach-Object {
         $analysisResultList.Add("     number of after error: $($numOfDrvFailAfterErrInThisQMS)")
         $analysisResultList.Add("-----------------------------------------------------------------------------------")
         $analysisResultList.Add("")
+        $thisTicket.numOfFailDrv = $numOfDrvFail
+        $thisTicket.numOfFailDrvBeforeErr = $numOfDrvFailBeforeErrInThisQMS
+        $thisTicket.numOfFailDrvAfterErr = $numOfDrvFailAfterErrInThisQMS
+        $thisTicket.DiskList = $FailureDrvList
+        $AllQMSTicketDB += $thisTicket
       }
 
       $baseName = $fileInfo.BaseName # 不含副檔名的檔名
@@ -683,11 +713,21 @@ if ($errorlogList.Count -gt 0) {
 }
 
 if ($analysisResultList.Count -gt 0) {
+  $analysisResultList.Add(">>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<")
+  $analysisResultList.Add("QMS        SN     numOfFailDrv numOfFailDrvBeforeErr numOfFailDrvAfterErr")
+  $analysisResultList.Add("---        --     ------------ --------------------- --------------------")
+  # Ticket summary
+  foreach ($ticket in $AllQMSTicketDB) {
+    $analysisResultList.Add("$($ticket.QMS) $($ticket.SN)          $($ticket.numOfFailDrv)              $($ticket.numOfFailDrvBeforeErr)                $($ticket.numOfFailDrvAfterErr)")
+    foreach ($disk in $ticket.DiskList) {
+      $analysisResultList.Add("   | $($disk)")
+    }
+  }
   $analysisResultList.Add("Total case: $($numOfDrvFailCase), Failed Drive before errors: $($numOfFailDrvBeforeErr), Failed Drive after errors: $($numOfFailDrvAfterErr)")
   $analysisResultList | Out-File -FilePath $analysisFile -Encoding utf8
+  $AllQMSTicketDB | Format-Table -AutoSize | Out-File -FilePath $analysisFile -Append -Encoding utf8
 }
 
 write-host "Total case: $($numOfDrvFailCase), Failed Drive before errors: $($numOfFailDrvBeforeErr), Failed Drive after errors: $($numOfFailDrvAfterErr)"
-$if ($DEBUG -eq 1) {
-  pause
-}
+#$AllQMSTicketDB | Format-Table -AutoSize
+pause
