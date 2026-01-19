@@ -3,43 +3,9 @@
 
 $DEBUG = 0
 
-# 建立統計物件的函式
-function MediaErrorBadSector ($Entries) {
-  $minSector = ($Entries | Sort-Object SectorDec)[0].SectorDec
-  $duration = ($Entries | Sort-Object Time)[-1].Time - ($Entries | Sort-Object Time)[0].Time
-  return [PSCustomObject]@{
-    DriveID     = $Entries[0].ID
-    StartSector = "0x{0:X}" -f $minSector
-    SectorDec   = $minSector
-    GB_Zone     = "GB_" + $Entries[0].GBZone
-    StartGB     = $Entries[0].GBZone
-    ErrorCount  = $Entries.Count
-    StartTime   = ($Entries | Sort-Object Time)[0].Time
-    EndTime     = ($Entries | Sort-Object Time)[-1].Time
-    Duration    = "$([Math]::Round($duration.TotalMinutes, 1)) mins"
-  }
-}
-
-function UpdateMediaErrorBadSector ($Curr, $Entries) {
-  $minSector = ($Entries | Sort-Object SectorDec)[0].SectorDec
-  $duration = ($Entries | Sort-Object Time)[-1].Time - ($Entries | Sort-Object Time)[0].Time
-  $Curr.DriveID = $Entries[0].ID
-  $Curr.StartSector = "0x{0:X}" -f $minSector
-  $Curr.SectorDec = $minSector
-  $Curr.GB_Zone = "GB_" + $Entries[0].GBZone
-  $Curr.StartGB = $Entries[0].GBZone
-  $Curr.ErrorCount = $Entries.Count
-  $Curr.StartTime = ($Entries | Sort-Object Time)[0].Time
-  $Curr.EndTime = ($Entries | Sort-Object Time)[-1].Time
-  $Curr.Duration = "$([Math]::Round($duration.TotalMinutes, 1)) mins"
-}
-
 function Set-TicketMap($TicketMap, $QMS, $SerialNumber) {
   foreach ($ticket in $TicketMap) {
-    #write-host "$($ticket.QMS) $($ticket.SN)"
-    #write-host "$($QMS) $($SerialNumber)"
     if ($ticket.QMS -eq $QMS -and $ticket.SN -eq $SerialNumber) {
-      #write-host "duplicated qms ticket!"
       return $null
     }
   }
@@ -54,16 +20,16 @@ function Set-TicketMap($TicketMap, $QMS, $SerialNumber) {
 }
 
 # --- [強化] 自動建立磁碟對照表函式 ---
-function Get-DiskMap {
-  # 2. 讀取檔案內容
-  $configContent = Get-Content -Path $configFilePath -Raw
+function Get-DiskMap($configPath) {
+  # 讀取檔案內容
+  $configContent = Get-Content -Path $configPath -Raw
 
-  # 3. 使用正則表達式抓取 SCSI ID 與 Vendor Product ID
+  # 使用正則表達式抓取 SCSI ID 與 Vendor Product ID
   $regexPattern = 'SCSI ID:\s+(?<ID>\d+)[\s\S]*?Vender and Product ID:\s+(?<VendorProduct>.*)[\s\S]*?Revision Number:\s+(?<Rev>\S+)[\s\S]*?Serial Number:\s+(?<SN>\S+)[\s\S]*?Disk Capacity \(blocks\):\s+(?<Capacity>\d+)'
 
   $matches = [regex]::Matches($configContent, $regexPattern)
 
-  # 4. 解析並存入清單，隨即進行排序
+  # 解析並存入清單，隨即進行排序
   $DiskList = foreach ($match in $matches) {
     [PSCustomObject]@{
       ID            = [int]$match.Groups['ID'].Value   # 轉成 int 才能正確按數值排序 (避免 10 排在 2 前面)
@@ -74,8 +40,37 @@ function Get-DiskMap {
     }
   }
 
-  # 5. 按照 ID 進行排序
+  # 按照 ID 進行排序
   return $DiskList | Sort-Object ID
+}
+
+function Get-DiskInMap($DisksList, $ScsiId) {
+  foreach ($disk in $DisksList) {
+    if ($disk.ID -eq $ScsiId) {
+      return $disk
+    }
+  }
+  return $null
+}
+
+function Set-DiskModel ($DiskModelMap, $VendorProduct) {
+  #HGST    HUS726060AL5210
+  $cols = $VendorProduct -split '\s+'
+  $Vendor = $cols[0]
+  $Model = $cols[1]
+  foreach ($Disk in $DiskModelMap) {
+    if ($Disk.Vendor -eq $Vendor -and $Disk.Model -eq $Model) {
+      $Disk.Count++
+      #return $Disk
+      return $null
+    }
+  }
+  $NewDisk = [PSCustomObject]@{
+    Vendor = $Vendor
+    Model  = $Model
+    Count  = 1
+  }
+  return $NewDisk
 }
 
 function Get-OfficeID {
@@ -95,6 +90,14 @@ function DateTime-Before ([DateTime]$Time1, [DateTime]$Time2) {
   else {
     return 1
   }
+}
+
+if (Test-Path ".\MediaErrorPattern.ps1") {
+  . .\MediaErrorPattern.ps1
+}
+else {
+  Write-Error "找不到 MediaErrorPattern.ps1，請確保檔案在同目錄。"
+  return
 }
 
 if (Test-Path ".\LogParseCfg.ps1") {
@@ -117,13 +120,17 @@ $analysisResultList = New-Object System.Collections.Generic.List[string]
 $numOfDrvFailCase = 0
 $numOfFailDrvBeforeErr = 0
 $numOfFailDrvAfterErr = 0
+
+$analysisDisks = New-Object System.Collections.Generic.List[string]
+
 # 2. 逐一處理 Search_Report.txt 中的檔案
 Get-Content $inputFile | ForEach-Object {
   $evtPath = $_.Trim()
     
   if (Test-Path $evtPath) {
     # 搜尋該檔案中「所有」匹配的行
-    $MediaErr_matches = Select-String -Path $evtPath -Pattern $pattern -ErrorAction SilentlyContinue
+    #$MediaErr_matches = Select-String -Path $evtPath -Pattern $pattern -ErrorAction SilentlyContinue
+    $MediaErr_matches = Get-MediaErrorData -logFilePath $evtPath
     $matchCount = $MediaErr_matches.Count
     $DrvFailDetected = 0
         
@@ -150,6 +157,7 @@ Get-Content $inputFile | ForEach-Object {
 
       $thisTicket = Set-TicketMap -TicketMap $AllQMSTicketDB -QMS $officeID -SerialNumber $idPart
       if ( $thisTicket -eq $null) {
+        $errorlogList.Add("忽略檔案: $configFilePath, $($officeID) 已分析")
         return
       }
 
@@ -173,159 +181,18 @@ Get-Content $inputFile | ForEach-Object {
 
       # --- 排序 Media error ---
       # 假設 $MediaErr_matches 是您從 Select-String 抓取出來的物件
-      $sortedPatternMatchResult = $MediaErr_matches | Sort-Object -Property @{
-        # 1. 第一層：依據磁碟 ID 分組
-        Expression = {
-          if ($_.Line -match 'ID:(?<ID>\d+)') { [int64]$Matches['ID'] } else { 0 }
-        }
-      }, @{
-        # 2. 第二層：1GB 區域對齊 (Grouping by GB range)
-        Expression = {
-          if ($_.Line -match '0x(?<Sector>[0-9A-Fa-f]+)') {
-            $decSector = [Convert]::ToInt64($Matches['Sector'], 16)
-            # 將 Sector 除以 1GB 的總數並取整數，得到「第幾個 GB」
-            [Math]::Floor($decSector / $SectorsPerGB)
-          }
-          else { 0 }
-        }
-      }, @{
-        # 3. 第三層：在同一個 1GB 區域內，按時間排序
-        Expression = {
-          if ($_.Line -match '(?<Date>\d{2}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})') {
-            [DateTime]::ParseExact($Matches['Date'], "yy-MM-dd HH:mm:ss", $null)
-          }
-          else { [DateTime]::MinValue }
-        }
-      }
+      $sortedPatternMatchResult = Set-MediaErrorMap -MediaErrorData $MediaErr_matches
 
-      # 1. 預處理：解析 Log 並轉為物件 (支援 64-bit Sector)
-      $parsedLogs = $MediaErr_matches | ForEach-Object {
-        $line = $_.Line
-        $foundID = $null
-        $foundTime = $null
-        $foundSector = 0
+      $parsedLogsObj = Build-ParseLog -MediaErrorData $MediaErr_matches
 
-        # 匹配 ID (精確抓取 ID:16, ID:17 等)
-        if ($line -match 'ID:(?<ID>\d+)') {
-          $foundID = [int64]$Matches['ID']
-        }
+      $finalReport = Split-MediaError-Group -LogsObj $parsedLogsObj
 
-        # 匹配日期時間 (YY-MM-DD HH:MM:SS)
-        if ($line -match '(?<DT>\d{2}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})') {
-          $foundTime = [DateTime]::ParseExact($Matches['DT'], "yy-MM-dd HH:mm:ss", $null)
-        }
+      $analysisReport = Do-Analysis-MediaError-Timestamp -LogsObj $parsedLogsObj
 
-        # 匹配 Sector (支援 64-bit Hex，例如 0xFFFFFFFF 或更長位址)
-        if ($line -match '0x(?<Hex>[0-9A-Fa-f]+)') {
-          try {
-            # 使用長整數處理位址
-            $foundSector = [Convert]::ToInt64($Matches['Hex'], 16)
-          }
-          catch {
-            $foundSector = 0 
-          }
-        }
-
-        if ($null -ne $foundID -and $null -ne $foundTime) {
-          [PSCustomObject]@{
-            ID        = $foundID
-            SectorDec = $foundSector
-            SectorHex = "0x{0:X}" -f $foundSector
-            GBZone    = [Math]::Floor($foundSector / $SectorsPerGB)
-            Time      = $foundTime
-            RawLine   = $line
-          }
-        }
-      }
-
-      # 2. 分組與事件處理
-      $finalReport = @()
-      $groups = $parsedLogs | Group-Object ID, GBZone
-
-      foreach ($g in $groups) {
-        # 區域內按 Sector 排序，確保分析連續性
-        $sortedEntries = $g.Group | Sort-Object StartGB, Time
-    
-        $currentEventEntries = @()
-        $lastTime = $null
-        foreach ($entry in $sortedEntries) {
-          # 時間間隔判定：超過10 min 則分割
-          if ($null -ne $lastTime -and [Math]::Abs(($entry.Time - $lastTime).TotalMinutes) -gt $minThreshhold) {
-            $finalReport += MediaErrorBadSector -Entries $currentEventEntries
-            $currentEventEntries = @()
-            $lastTime = $entry.Time
-          }
-          $currentEventEntries += $entry
-          if ($null -eq $lastTime) {
-            $lastTime = $entry.Time
-          }
-        }
-    
-        if ($currentEventEntries.Count -gt 0) {
-          #$logList.Add("*** $($currentEventEntries[0].ID) $($currentEventEntries[0].GBZone) ST=$($currentEventEntries[0].Time) $($currentEventEntries.Count)")
-          $finalReport += MediaErrorBadSector -Entries $currentEventEntries
-        }
-      }
-
-      $analysisReport = @()
-      foreach ($g in $groups) {
-        # 區域內按 Sector 排序，確保分析連續性
-        $sortedEntries = $g.Group | Sort-Object Time, StartGB
-    
-        $currentEventEntries = @()
-        $lastTime = $null
-        $duplicated = 0
-        foreach ($entry in $sortedEntries) {
-          # 時間間隔判定：超過10 min 則分割
-          if ($null -ne $lastTime -and [Math]::Abs(($entry.Time - $lastTime).TotalMinutes) -gt $minThreshhold) {
-            if ($DEBUG -eq 1 ) {
-              write-host "   Cmp1 $($currentEventEntries[0].ID) $($currentEventEntries[0].GBZone) $($currentEventEntries[0].Time) $($currentEventEntries.Count)" -ForegroundColor Gray
-            }
-            $analysisReport | ForEach-Object {
-              if ($DEBUG -eq 1 ) {
-                write-host "    Cmp $($_.DriveID) $($_.StartGB) $($_.StartTime)" -ForegroundColor Gray
-              }
-              if ($($_.DriveID) -eq $currentEventEntries[0].ID -and $_.StartGB -eq $currentEventEntries[0].GBZone) {
-                if ($DEBUG -eq 1 ) {
-                  write-host "    Match" -ForegroundColor Gray
-                }
-                UpdateMediaErrorBadSector -Curr $_ -Entries $currentEventEntries
-                $duplicated = 1
-                break
-              }
-            }
-            if ($duplicated -eq 0) {
-              $analysisReport += MediaErrorBadSector -Entries $currentEventEntries
-            }
-
-            $currentEventEntries = @()
-            $lastTime = $entry.Time
-          }
-          $currentEventEntries += $entry
-          if ($null -eq $lastTime) {
-            $lastTime = $entry.Time
-          }
-        }
-    
-        if ($currentEventEntries.Count -gt 0) {
-          if ($duplicated -eq 0 ) {
-            $analysisReport += MediaErrorBadSector -Entries $currentEventEntries
-          }
-        }
-      }
-
-
-      # 3. 最終排序：先按 ID 排，再按 Sector 數值排
+      # 最終排序：先按 ID 排，再按 Sector 數值排
       $sortedFinalReport = $finalReport | Sort-Object DriveID, SectorDec
       $sortedFinalAnalysisReport = $analysisReport | Sort-Object DriveID, StartTime
 
-      # 4. 輸出結果
-      if ($DEBUG -eq 1 ) {
-        Write-Host "`n[統計摘要]" -ForegroundColor Cyan
-        Write-Host "總受損 GB 區域數: " ($groups.Count)
-        Write-Host "總事件處理數 (跨週分割): " ($finalReport.Count) -ForegroundColor Yellow
-        $sortedFinalReport | Select-Object DriveID, StartSector, GB_Zone, ErrorCount, StartTime, EndTime, Duration | Format-Table -AutoSize
-      }
 
       $drvFailedMatches = Select-String -Path $evtPath -Pattern $pattern1 -ErrorAction SilentlyContinue
 
@@ -338,7 +205,6 @@ Get-Content $inputFile | ForEach-Object {
         $OutPutDir = $officeID
         $allMatches = $MediaErr_matches + $drvFailedMatches;
       }
-      $drvErrMatches = Select-String -Path $evtPath -Pattern $DrvErrPattern -ErrorAction SilentlyContinue
       
       if (!(Test-Path $OutPutDir)) {
         New-Item -ItemType Directory -Path $OutPutDir -Force | Out-Null
@@ -378,33 +244,7 @@ Get-Content $inputFile | ForEach-Object {
         }
       }
 
-      # --- 產生表格化 Text 與 畫面顯示 ---
-      $reportOutput = New-Object System.Collections.Generic.List[string]
-      $reportOutput.Add("=== Disk Media Error Analysis Report (Grouped by ID) ===")
-      $reportOutput.Add("Generated on: $(Get-Date)")
-      $reportOutput.Add("Total number of damaged GB areas: $($groups.Count)")
-      $reportOutput.Add("")
-
-      # 按 ID 分組顯示
-      $groupedByID = $finalReport | Sort-Object DriveID, SectorDec | Group-Object DriveID
-
-
-      foreach ($driveGroup in $groupedByID) {
-        # 假設 $foundID 是您從 Error Log 中抓到的 ID (例如 202)
-        $currentVendor = $DiskMap[$driveGroup.Name]
-
-        $header = ">>> Drive ID: $($driveGroup.Name) (Total Events: $($driveGroup.Count))"
-        $reportOutput.Add($header)
-        $reportOutput.Add("-" * $header.Length)
-        if ($currentVendor) {
-          $reportOutput.Add($currentVendor)
-        }
-    
-        # 格式化該 ID 下的事件清單
-        $table = $driveGroup.Group | Select-Object StartSector, GB_Zone, ErrorCount, StartTime, EndTime, Duration | Format-Table -AutoSize | Out-String
-        $reportOutput.Add($table)
-        $reportOutput.Add("") # 空行隔開不同 ID
-      }
+      $MediaErrorSectReportOutput = Create-MediaErrorSect-Report -Report $finalReport -DiskMap $DiskMap
       # --- 處理個別錯誤檔案 (完整結果) ---
       $debFileName = "$idPart.deb.0.5.full.txt"
       $debPath = Join-Path $fileInfo.DirectoryName $debFileName
@@ -422,6 +262,13 @@ Get-Content $inputFile | ForEach-Object {
           }
         }
       }
+
+
+      # Drive failure detection
+      $drvErrMatches = Select-String -Path $evtPath -Pattern $DrvErrPattern -ErrorAction SilentlyContinue
+      # $debList - from *.deb.0.5.full.txt, events we needs
+      # $drvErrMatches - from *.evt.0.5.full.txt, Events we needs
+      # $sortedFinalAnalysisReport - sorted by Drive ID and time
       $ScsiId = -1
       $BadSector = 0
       $DriveIsFailed = 0
@@ -433,23 +280,23 @@ Get-Content $inputFile | ForEach-Object {
       $startIndex = 0
       $FailureDrvList = New-Object System.Collections.Generic.List[string]
       $sortedFinalAnalysisReport | ForEach-Object {
+        $sortedSector = $_
         if ($DEBUG -eq 1) {
           write-host "ID: $($_.DriveID) GB: $($_.StartGB) $($_.StartTime)" -ForegroundColor Gray
         }
-        #$logList.Add("        ID: $($_.DriveID) GB: $($_.StartGB) $($_.StartTime)")
         if ($ScsiId -eq -1) {
-          $ScsiId = $_.DriveID
+          $ScsiId = $sortedSector.DriveID
           $BadSector = 1
           $startIndex = 0
           $lastTime = $_.StartTime
         }
         else {
           $num++
-          if ($ScsiId -eq $_.DriveID) {
+          if ($ScsiId -eq $sortedSector.DriveID) {
             if ([Math]::Abs(($_.StartTime - $lastTime).TotalDays) -gt $WeekThresholdDays) {
               $i = $startIndex + 1
               while ($i -le $num) {
-                if ([Math]::Abs(($_.StartTime - $sortedFinalAnalysisReport[$i].StartTime).TotalDays) -gt $WeekThresholdDays) {
+                if ([Math]::Abs(($sortedSector.StartTime - $sortedFinalAnalysisReport[$i].StartTime).TotalDays) -gt $WeekThresholdDays) {
                   $BadSector--
                 }
                 else {
@@ -466,7 +313,7 @@ Get-Content $inputFile | ForEach-Object {
           }
           else {
             $BadSector = 1
-            $ScsiId = $_.DriveID
+            $ScsiId = $sortedSector.DriveID
             $startIndex = $num - 1
             $lastTime = $_.StartTime
             $DriveIsFailed = 0
@@ -483,6 +330,14 @@ Get-Content $inputFile | ForEach-Object {
               $analysisResultList.Add("    $($currentVendor)");
               $FailureDrvList += $currentVendor
             }
+            $disk = Get-DiskInMap -DisksList $SortedDiskList -ScsiId $ScsiId
+            if ($disk) {
+              $DiskModel = Set-DiskModel -DiskModelMap $analysisDisks -VendorProduct $disk.VendorProduct
+              if ( $DiskModel -ne $null) {
+                $analysisDisks += $DiskModel
+              }
+            }
+
             $logList.Add("           $($_.StartTime | Get-Date -Format "yy-MM-dd HH-mm-ss") ID:$($ScsiId)     Drive Failure")
             $analysisResultList.Add("           $($_.StartTime | Get-Date -Format "yy-MM-dd HH-mm-ss") ID:$($ScsiId)     Drive Failure")
             $DriveIsFailed = 1
@@ -490,10 +345,24 @@ Get-Content $inputFile | ForEach-Object {
             $FailAlogDetected = 0
             $DrvFailBeforeTmout = -1
             $DrvFailBeforeErr = -1
-            $EventTime = $_.StartTime
+            $EventTime = $sortedSector.StartTime
             $debList | ForEach-Object {
-              if ($DrvFailBeforeTmout -le 0 -and $_ -match 'M62: Chl (?<CHL>\d+) Id (?<ID>[0-9a-fA-F]+)') {
-                $foundID = [Convert]::ToInt64($Matches['ID'], 16)
+              # Drive ChlNo:21 ID:0 High latency detected(op: 2a, last request latency:1394ms, request amount:7 
+              #if ($DrvFailBeforeTmout -le 0 -and $_.Line -match 'M62: Chl (?<CHL>\d+) Id (?<ID>[0-9a-fA-F]+)') {
+              if ($DrvFailBeforeTmout -le 0) {
+                $foundID = -1
+                if ($_ -match 'M62: Chl (?<CHL>\d+) Id (?<ID>[0-9a-fA-F]+)') {    
+                  $foundID = [Convert]::ToInt64($Matches['ID'], 16)
+                }
+                else {
+                  if ($_.Line -match 'Drive ChlNo:(?<CHL>\d+) ID (?<ID>\d+) High latency detected') {
+                    $foundID = [Convert]::ToInt64($Matches['ID'], 10)
+                    if ($foundID -eq $ScsiId) {
+                      write-host "$($_)"
+                      logList.Add("$($_), target id $($ScsiId), foundId $($foundId)")
+                    }
+                  }
+                }
                 if ($foundID -eq $ScsiId) {
                   if ($FailAlogDetected -eq 0 -and $_ -match '(?<DateTime>\d{2}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})') {
                     # 轉成 DateTime 物件進行精確的時間數值排序
@@ -519,7 +388,7 @@ Get-Content $inputFile | ForEach-Object {
             }
             $FailAlogDetected = 0
             $drvErrMatches | ForEach-Object {
-              if ($_.Line -match 'CHL:(?<CHL>\d+) ID:(?<ID>\d+)') {
+              if ($_.Line -match 'CH(?:L)?[:\s]+(?<Channel>\d+)\s+ID:(?<ID>\d+)') {
                 $foundID = [int64]$Matches['ID']
                 if ($foundID -eq $ScsiId) {
                   if ($FailAlogDetected -eq 0 -and $_.Line -match '(?<Date>\d{2}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})') {
@@ -569,6 +438,7 @@ Get-Content $inputFile | ForEach-Object {
         $AllQMSTicketDB += $thisTicket
       }
 
+      # Starting backup the result
       $baseName = $fileInfo.BaseName # 不含副檔名的檔名
       $timestamp = $fileInfo.CreationTime.ToString("yyyyMMdd_HHmmss")
 
@@ -576,7 +446,7 @@ Get-Content $inputFile | ForEach-Object {
       $patternMatchOutPath = Join-Path $OutPutDir "${baseName}_${timestamp}_mediaerror.txt"
 
       # 儲存與輸出至 xxx_mediaerror.txt
-      $reportOutput | Out-File -FilePath $patternMatchOutPath -Encoding UTF8
+      $MediaErrorSectReportOutput | Out-File -FilePath $patternMatchOutPath -Encoding UTF8
       $sortedFinalReport | Select-Object DriveID, StartSector, GB_Zone, ErrorCount, StartTime, EndTime, Duration | Format-Table -AutoSize |
       Out-File -FilePath $patternMatchOutPath -Append -Encoding utf8
       $sortedFinalAnalysisReport | Select-Object DriveID, StartSector, GB_Zone, ErrorCount, StartTime, EndTime, Duration | Format-Table -AutoSize |
@@ -585,16 +455,15 @@ Get-Content $inputFile | ForEach-Object {
 
       # 儲存與輸出至 xxx_mediaerror_sorted.txt
       $patternMatchOutPath = Join-Path $OutPutDir "${baseName}_${timestamp}_mediaerror_sorted.txt"
-      $reportOutput | Out-File -FilePath $patternMatchOutPath -Encoding UTF8
+      $MediaErrorSectReportOutput | Out-File -FilePath $patternMatchOutPath -Encoding UTF8
       $sortedPatternMatchResult.Line | Out-File -FilePath $patternMatchOutPath -Append -Encoding utf8
       $SortedDiskList | Format-Table -AutoSize | Out-File -FilePath $patternMatchOutPath -Append -Encoding utf8
       if ($DEBUG -eq 1 ) {
-        $reportOutput | Write-Host -ForegroundColor White # 直接在畫面上顯示
+        $MediaErrorSectReportOutput | Write-Host -ForegroundColor White # 直接在畫面上顯示
       }
       # 定義檔名
       $csvFileName = "Disk_Error_Report_${baseName}_${timestamp}.csv"
       $csvFilePath = Join-Path $OutPutDir $csvFileName
-
 
       # 將結果選取需要的欄位並匯出
       $sortedFinalReport | Select-Object DriveID, StartSector, GB_Zone, ErrorCount, StartTime, EndTime, Duration | 
@@ -648,7 +517,7 @@ Get-Content $inputFile | ForEach-Object {
           # 完整儲存路徑：資料夾名稱 / 檔名
           $finalOutputPath = Join-Path $OutPutDir $targetFileName
           # 3. 儲存與輸出
-          $reportOutput | Out-File -FilePath $finalOutputPath -Encoding UTF8
+          $MediaErrorSectReportOutput | Out-File -FilePath $finalOutputPath -Encoding UTF8
           # 將所有匹配的行內容寫入該個別檔案
           $sortedResults | Out-File -FilePath $finalOutputPath -Append -Encoding utf8
                     
@@ -693,9 +562,9 @@ Get-Content $inputFile | ForEach-Object {
 
 # 3. 輸出總結報告
 if ($summaryList.Count -gt 0) {
-  $summaryList | Out-File -FilePath $summaryFile -Encoding utf8
+  $summaryList | Out-File -FilePath $resultFile -Encoding utf8
   if ($summary1List.Count -gt 0) {
-    $summary1List | Out-File -FilePath $summaryFile1 -Encoding utf8
+    $summary1List | Out-File -FilePath $resultFile1 -Encoding utf8
     write-host "`n[完成] 總結報告已存至: $summaryFile1" -ForegroundColor Green
     write-host "[完成] 共處理了 $($summary1List.Count) 個包含錯誤的檔案。" -ForegroundColor Green
   }
@@ -713,19 +582,36 @@ if ($errorlogList.Count -gt 0) {
 }
 
 if ($analysisResultList.Count -gt 0) {
-  $analysisResultList.Add(">>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<")
-  $analysisResultList.Add("QMS        SN     numOfFailDrv numOfFailDrvBeforeErr numOfFailDrvAfterErr")
-  $analysisResultList.Add("---        --     ------------ --------------------- --------------------")
+  $summaryList = New-Object System.Collections.Generic.List[string]
+  $analysisResultList.Add("Total case: $($numOfDrvFailCase), Failed Drive before errors: $($numOfFailDrvBeforeErr), Failed Drive after errors: $($numOfFailDrvAfterErr)")
+  $analysisFileTxt = $analysisFile + ".txt"
+  $analysisResultList | Out-File -FilePath $analysisFileTxt -Encoding utf8
+  $numOfQMS = $AllQMSTicketDB.Count
+  $numOfDisk = 0
+  $numOfBefore = 0
+  $numOfAfter = 0
+  $summaryList.Add("============================================================")
+  $summaryList.Add("QMS        SN     numOfFailDrv numOfFailDrvBeforeErr numOfFailDrvAfterErr")
+  $summaryList.Add("---        --     ------------ --------------------- --------------------")
   # Ticket summary
   foreach ($ticket in $AllQMSTicketDB) {
-    $analysisResultList.Add("$($ticket.QMS) $($ticket.SN)          $($ticket.numOfFailDrv)              $($ticket.numOfFailDrvBeforeErr)                $($ticket.numOfFailDrvAfterErr)")
+    $summaryList.Add("$($ticket.QMS) $($ticket.SN)          $($ticket.numOfFailDrv)              $($ticket.numOfFailDrvBeforeErr)                $($ticket.numOfFailDrvAfterErr)")
     foreach ($disk in $ticket.DiskList) {
-      $analysisResultList.Add("   | $($disk)")
+      $summaryList.Add("   | $($disk)")
     }
+    $numOfDisk += $ticket.numOfFailDrv
+    $numOfBefore += $ticket.numOfFailDrvBeforeErr
+    $numOfAfter += $ticket.numOfFailDrvAfterErr
   }
-  $analysisResultList.Add("Total case: $($numOfDrvFailCase), Failed Drive before errors: $($numOfFailDrvBeforeErr), Failed Drive after errors: $($numOfFailDrvAfterErr)")
-  $analysisResultList | Out-File -FilePath $analysisFile -Encoding utf8
-  $AllQMSTicketDB | Format-Table -AutoSize | Out-File -FilePath $analysisFile -Append -Encoding utf8
+  $summaryList.Add("---        --     ------------ --------------------- --------------------")
+  $summaryList.Add("     $($numOfQMS)                   $($numOfDisk)             $($numOfBefore)               $($numOfAfter)        $($numOfDisk - $numOfBefore - $numOfAfter)")
+  $summaryFileTxt = $summaryFile + ".txt"
+  $summaryList | Out-File -FilePath $summaryFileTxt -Encoding utf8
+  $summaryFileTxt = $summaryFile + "1.txt"
+  $AllQMSTicketDB | Format-Table -AutoSize | Out-File -FilePath $summaryFileTxt -Encoding utf8
+  if ($analysisDisks.Count -gt 0) {
+    $analysisDisks | Format-Table -AutoSize | Out-File -FilePath $summaryFileTxt -Append -Encoding utf8
+  }
 }
 
 write-host "Total case: $($numOfDrvFailCase), Failed Drive before errors: $($numOfFailDrvBeforeErr), Failed Drive after errors: $($numOfFailDrvAfterErr)"
