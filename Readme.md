@@ -8,12 +8,15 @@ These scripts are used to analyze the support log.
     $minSizeMB = 0                   # 最小檔案大小 (MB)
     $daysAgo = 0                    # 最近幾天內修改過： 設為 0 代表不限日期
     $outputFile = "Search_Report_JP.txt" # 輸出的檔名
-    
-2. Executing LogParse.ps1.
-    You must modify these 3 varables before executing.
-        $inputFile = "Search_Report_EU.txt"
-            Must be $outputFile in "searchfile.ps1"
-        $summaryFile = "Column7_Match_Result_EU.txt"
-        $summaryFile1 = "Column7_Match_Result1_EU.txt"
-        
-Currently, these scripts are used to analyze "media error".
+2. Configuration files.
+    LogParseCfg.ps1
+      $inputFile = "Search_Report.txt"
+      $resultFile = "Match_Result.txt"
+      $resultFile1 = "All_Match_Result.txt"
+      $errrologFile = "error.log"
+      $logFile = "LogParse.log"
+      $analysisFile = "AnalysisReport"
+      $summaryFile = "Summary"
+      $minMatchCount = 20  # 設定門檻：少於 20 行則忽略
+3. Executing LogParse.ps1.
+    Now, these scripts are used to analyze "media error".

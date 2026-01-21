@@ -4,37 +4,37 @@
 #320A4509: LD fatal
 #12084204: Drive Event Detected-Starting Clone
 #12084244: WARN:SMART-CH 12 ID:185 (JBODId:3 SlotNum:6) Drive Event Detected-Starting Clone
-
+#22084205: ERROR:SMART-CH 8 ID:23 Drive Event Detected-Clone Failed
 #220A0749: Media Scan Failed
 #22084202: No availible drive for cloning
 #22084285: Drive Event Detected-Clone Failed
 #22080581: Timeout Waiting for I/O to Complete
 #21080282: Gross Phase/Signal Error Detected
+#22081882: CHL:12 ID:4 (JBODId:0 SlotNum:5)  Drive ERROR: Aborted Command (0B/4B/04)
 #020A8305: Rebuild
-#22081882
 #12084203: SMART-CH 12 ID:552 Drive Event Detected 
+#020A8304: ID:6C48F804 Logical Drive INFORM: Starting Rebuild
+#020A8402: ID:6C48F804 Logical Drive INFORM: Rebuild of Logical Drive Completed
+#22080541: CHL:12 ID:206 (JBODId:3 SlotNum:27)  Target ERROR: Timeout Waiting for I/O to Complete
+#22080141: CHL:12 ID:206 (JBODId:3 SlotNum:27)  Target ERROR: Unexpected Select Timeout
+#21080242: CHL:12 ID:206 (JBODId:3 SlotNum:27)  Target ERROR: Gross Phase/Signal Error Detected
+#220A0302: ID:E334CFD Logical Drive ERROR: Rebuild Failed
+#220A0188: Name: Pool-1 Id: 3F9C16281CD22CF3 Pool Name: Logical_Drive_1 ID:E334CFD Logical Drive ERROR: CHL:12 ID:4 (JBODId:0 SlotNum:5)  Drive Failure
 
 # 1. 設定關鍵字與檔案路徑
 # media error
 $keywords = @("02081382", "02081342", "02081341", "02081381")
 # drive fail, rebuild, clone, io error
-$keywords1 = @("21081282", "220A0188", "220A0187", "220A0185", "220A0148", "12084204", "12084203", "12084244")
+$keywords1 = @("21081282", "220A0188", "220A0187", "220A0185", "220A0148", "12084204", "12084203", "12084244", "22084205")
 
-# events we want
-$keywords2 = @("02081382", "02081342", "02081341", "02081381", "220A0787", "21081282", "220A0188", "22080581", "020A8305", "020AA182", "320A4509", "220A0187", "22084205", "22084202", "020A8402", "21080282", "22080181", "220A1182", "12084243", "12084244", "020AA142", "020AA281", "220A0185", "12084204", "22080541", "22080542", "220A0148", "21080242", "22080141", "02081781", "22084285", "12084284", "220A0749", "22081882", "12084203", "020A8304")
-
-#27547  IN 22-01-18 12:23:05 [A ] 020A8304 ID:6C48F804 Logical Drive INFORM: Starting Rebuild
-# 27548  IN 22-01-18 14:17:14 [A ] 00190002 
-# 27549  IN 22-01-18 14:51:22 [A ] 00190002 
-# 27550  IN 22-01-18 23:18:48 [A ] 020A8402 ID:6C48F804 Logical Drive INFORM: Rebuild of Logical Drive Completed
- 
-#22080541 CHL:12 ID:206 (JBODId:3 SlotNum:27)  Target ERROR: Timeout Waiting for I/O to Complete
-#22080141 CHL:12 ID:206 (JBODId:3 SlotNum:27)  Target ERROR: Unexpected Select Timeout
-#21080242 CHL:12 ID:206 (JBODId:3 SlotNum:27)  Target ERROR: Gross Phase/Signal Error Detected
 $LDRebuildStart = @("020A8306", "020A8305", "020A8304")
-$LDRebuildCmplt = "020A8402"
-$DrvErrKeywords = @("21081282", "220A0188", "220A0187", "220A0185", "220A0148", "12084204", "22080581", "12084244", "12084203", "22084285", "22080541", "22080141", "21080242")
-#$DrvErrKeywords = @("21081282", "220A0188", "220A0187", "220A0185", "220A0148", "12084204", "22080581", "12084244","12084203", "22084285")
+$LDRebuildCmplt = @("020A8402", "220A0302")
+# events we want
+$keywords2 = @("220A0787", "22080581", "020AA182", "320A4509", "22084202", "21080282", "22080181", "220A1182", "12084243", "020AA142", "020AA281", "22080541", "22080542", "21080242", "22080141", "02081781", "22084285", "12084284", "220A0749", "22081882") + $keywords + $keywords1 + $LDRebuildStart + $LDRebuildCmplt
+
+
+$DrvErrKeywords = @("22080581", "22084285", "22080541", "22080141", "21080242") + $keywords1
+$LDRebuild = $LDRebuildCmplt + $LDRebuildStart
 
 # Drive ChlNo:21 ID:0 High latency detected(op: 2a, last request latency:1394ms, request amount:7 
 $debkeywords = @("M62:", "High latency detected")
@@ -52,10 +52,15 @@ $pattern2 = "^\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+($keywordPattern2)"
 $keywordDrvErrPattern = ($DrvErrKeywords | ForEach-Object { [regex]::Escape($_) }) -join '|'
 $DrvErrPattern = "^\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+($keywordDrvErrPattern)"
 
+$keywordRebuildPattern = ($LDRebuild | ForEach-Object { [regex]::Escape($_) }) -join '|'
+$RebuildPattern = "^\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+($keywordRebuildPattern)"
+
 $debkeywordPattern = ($debkeywords | ForEach-Object { [regex]::Escape($_) }) -join '|'
 
-$rebuildPattern = "(" + ($LDRebuildStart -join '|') + ")"
-$keywordRebuildPattern = "$rebuildPattern.* ID:(?<LD>[0-9A-Fa-f]+)"
+$rebuildStartPattern= "(" + ($LDRebuildStart -join '|') + ")"
+$keywordRebuildStartPattern = "$rebuildStartPattern.* ID:(?<LD>[0-9A-Fa-f]+)"
+$rebuildCmptPattern = "(" + ($LDRebuildCmplt -join '|') + ")"
+$keywordRebuildCmpltPattern = "$rebuildCmptPattern.* ID:(?<LD>[0-9A-Fa-f]+)"
 
 # 定義 1GB 所佔用的 Sector 數量 (以 512-byte sector 為例)
 $SectorsPerGB = 2097152
@@ -214,7 +219,7 @@ function Do-Analysis-MediaError-Timestamp ($LogsObj) {
   foreach ($g in $groups) {
     # 區域內按 Sector 排序，確保分析連續性
     $sortedEntries = $g.Group | Sort-Object Time, StartGB
-    
+   
     $currentEventEntries = @()
     $lastTime = $null
     $duplicated = 0
