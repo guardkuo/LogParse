@@ -1,4 +1,4 @@
-$inputFile = "Search_Report.txt"
+$inputFile = "demo.txt"
 $resultFile = "Match_Result.txt"
 $resultFile1 = "All_Match_Result.txt"
 $errrologFile = "error.log"
@@ -6,3 +6,4 @@ $logFile = "LogParse.log"
 $analysisFile = "AnalysisReport"
 $summaryFile = "Summary"
 $minMatchCount = 20  # 設定門檻：少於 20 行則忽略
+$DefMaxNumOfBadSector = 9 # 設定門檻：大於 9 個區域(不含)才處理

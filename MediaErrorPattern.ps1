@@ -20,24 +20,25 @@
 #21080242: CHL:12 ID:206 (JBODId:3 SlotNum:27)  Target ERROR: Gross Phase/Signal Error Detected
 #220A0302: ID:E334CFD Logical Drive ERROR: Rebuild Failed
 #220A0188: Name: Pool-1 Id: 3F9C16281CD22CF3 Pool Name: Logical_Drive_1 ID:E334CFD Logical Drive ERROR: CHL:12 ID:4 (JBODId:0 SlotNum:5)  Drive Failure
+#12084284: SMART-CH 12 ID:8 (JBODId:0 SlotNum:9) Drive Event Detected-Starting Clone
 
 # 1. 設定關鍵字與檔案路徑
 # media error
 $keywords = @("02081382", "02081342", "02081341", "02081381")
 # drive fail, rebuild, clone, io error
-$keywords1 = @("21081282", "220A0188", "220A0187", "220A0185", "220A0148", "12084204", "12084203", "12084244", "22084205")
+$keywords1 = @("21081282", "220A0188", "220A0187", "220A0185", "220A0148", "12084204", "12084203", "12084244", "22084205", "12084284")
 
 $LDRebuildStart = @("020A8306", "020A8305", "020A8304")
 $LDRebuildCmplt = @("020A8402", "220A0302")
 # events we want
-$keywords2 = @("220A0787", "22080581", "020AA182", "320A4509", "22084202", "21080282", "22080181", "220A1182", "12084243", "020AA142", "020AA281", "22080541", "22080542", "21080242", "22080141", "02081781", "22084285", "12084284", "220A0749", "22081882") + $keywords + $keywords1 + $LDRebuildStart + $LDRebuildCmplt
+$keywords2 = @("220A0787", "22080581", "020AA182", "320A4509", "22084202", "21080282", "22080181", "220A1182", "12084243", "020AA142", "020AA281", "22080541", "22080542", "21080242", "22080141", "02081781", "22084285", "220A0749", "22081882") + $keywords + $keywords1 + $LDRebuildStart + $LDRebuildCmplt
 
 
 $DrvErrKeywords = @("22080581", "22084285", "22080541", "22080141", "21080242") + $keywords1
 $LDRebuild = $LDRebuildCmplt + $LDRebuildStart
 
 # Drive ChlNo:21 ID:0 High latency detected(op: 2a, last request latency:1394ms, request amount:7 
-$debkeywords = @("M62:", "High latency detected")
+$debkeywords = @("latency", "M62:")
 
 # 建立搜尋正則：鎖定第七欄
 $keywordPattern = ($keywords | ForEach-Object { [regex]::Escape($_) }) -join '|'
@@ -56,8 +57,9 @@ $keywordRebuildPattern = ($LDRebuild | ForEach-Object { [regex]::Escape($_) }) -
 $RebuildPattern = "^\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+($keywordRebuildPattern)"
 
 $debkeywordPattern = ($debkeywords | ForEach-Object { [regex]::Escape($_) }) -join '|'
+#$debkeywordPattern = "(" + ($debkeywords -join '|') + ")"
 
-$rebuildStartPattern= "(" + ($LDRebuildStart -join '|') + ")"
+$rebuildStartPattern = "(" + ($LDRebuildStart -join '|') + ")"
 $keywordRebuildStartPattern = "$rebuildStartPattern.* ID:(?<LD>[0-9A-Fa-f]+)"
 $rebuildCmptPattern = "(" + ($LDRebuildCmplt -join '|') + ")"
 $keywordRebuildCmpltPattern = "$rebuildCmptPattern.* ID:(?<LD>[0-9A-Fa-f]+)"
@@ -204,6 +206,7 @@ function Split-MediaError-Group ($LogsObj) {
 
 
   if ($DEBUG -eq 1 ) {
+    #Write-Host "Split-MediaError-Group "
     Write-Host "`n[統計摘要]" -ForegroundColor Cyan
     Write-Host "總受損 GB 區域數: " ($groups.Count)
     Write-Host "總事件處理數 (跨週分割): " ($report.Count) -ForegroundColor Yellow

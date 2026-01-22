@@ -27,15 +27,25 @@ function Get-DiskMap($configPath) {
   $regexResp = 'Maximum Drive Response Timeout:\s+(?<Value>\S+)'
   $respMatch = [regex]::Match($configContent, $regexResp)
   $maxRespTime = if ($respMatch.Success) { $respMatch.Groups['Value'].Value } else { "N/A" }
+  $regexResp = 'Maximum Tag Count:\s+(?<Value>\S+)'
+  $respMatch = [regex]::Match($configContent, $regexResp)
+  $maxTag = if ($respMatch.Success) { $respMatch.Groups['Value'].Value } else { "8" }
+  $regexResp = 'Disk I/O Timeout\(Sec\):\s+(?<Value>\S+)'
+  $respMatch = [regex]::Match($configContent, $regexResp)
+  $maxIOTimeOut = if ($respMatch.Success) { $respMatch.Groups['Value'].Value } else { "N/A" }
+
   $DiskList = New-Object System.Collections.Generic.List[PSCustomObject]
-  $diskBlocks = $configContent -split '(?=\s+Slot:\s+\d+\r?\n)'
+  #Enclosure - Slot 15
+  #Slot: 1
+  #$diskBlocks = $configContent -split '(?=\s+Slot(?:)\s+\d+\r?\n)'
+  $diskBlocks = $configContent -split '(?=#?Slot)'
   foreach ($block in $diskBlocks) {
     # 在這一個小區塊內分別抓取欄位 (這樣就不會互相干擾)
     if ($block -match 'SCSI ID:\s+(?<ID>\d+)') {
       $id = $Matches['ID']
            
       $ldid = if ($block -match 'LD:\s+(?<LDID>[0-9A-Fa-f]+)') { $Matches['LDID'] } else { "N/A" }
-      $vendor = if ($block -match 'Vender and Product ID:\s+(?<V>.*)') { $Matches['V'].Trim() } else { "Unknown" }
+      $vendor = if ($block -match 'Vender and Product ID:\s+(?<V>.*)') { $Matches['V'].Trim() } else { continue }
       $rev = if ($block -match 'Revision Number:\s+(?<R>\S+)') { $Matches['R'] } else { "N/A" }
       $sn = if ($block -match 'Serial Number:\s+(?<S>\S+)') { $Matches['S'] } else { "N/A" }
       $cap = if ($block -match 'Disk Capacity \(blocks\):\s+(?<C>\d+)') { $Matches['C'] } else { 0 }
@@ -50,10 +60,12 @@ function Get-DiskMap($configPath) {
         })
     }
   }
-  
+ 
   return [PSCustomObject]@{
-    MaxRespTime = $maxRespTime
-    DiskList    = $DiskList | Sort-Object ID
+    MaxRespTime  = $maxRespTime
+    MaxTag       = $maxTag
+    MaxIOTimeout = $maxIOTimeOut
+    DiskList     = $DiskList | Sort-Object ID
   }
 }
 
@@ -104,8 +116,8 @@ function DateTime-Before ([DateTime]$Time1, [DateTime]$Time2) {
   }
 }
 
-function Set-LDRebuild-Time($RebuildSeq, $LD, $Starting, [DateTime]$Time) {
-  foreach ($rebuild in $RebuildSeq) {
+function Set-LDRebuild-Time($RebuildList, $LD, $Starting, [DateTime]$Time) {
+  foreach ($rebuild in $RebuildList) {
     if ($rebuild.LDID -eq $LD) {
       if ($Starting -eq 1 ) {
         if ($rebuild.EndTime -eq $null) {
@@ -121,19 +133,22 @@ function Set-LDRebuild-Time($RebuildSeq, $LD, $Starting, [DateTime]$Time) {
       }
     }
   }
-  $rebuild = [PSCustomObject]@{
+  
+  if ($Starting -eq 0) {
+    return $null
+  }
+  return $rebuild = [PSCustomObject]@{
     LDID      = $LD
     StartTime = $Time
     EndTime   = $null
   }
-  return $rebuild
 }
 
-function Check-LDRebuiding($RebuildSeq, $LD, $Time) {
+function Check-LDRebuiding($RebuildList, $LD, $Time) {
   if ($Time -eq $null) {
     return 0
   }
-  foreach ($rebuild in $RebuildSeq) {
+  foreach ($rebuild in $RebuildList) {
     if ($rebuild.LDID -eq $LD) {
       if ($rebuild.EndTime -ne $null -and $rebuild.StartTime -ne $null) {
         if (($rebuild.StartTime - $Time).TotalMinutes -le 0 -and ($Time - $rebuild.EndTime).TotalMinutes -le 0) {
@@ -218,7 +233,7 @@ Get-Content $inputFile | ForEach-Object {
       # 6. 建立最終的 $DiskMap (以 ID 為 Key 的 Hashtable)
       $DiskMap = @{}
       foreach ($item in $StorageConfig.DiskList) {
-        $DiskMap[$item.ID.ToString()] = "$($item.VendorProduct) REV:$($item.Revision) (SN:$($item.SerialNumber)) (Capacity:$($item.Size) GB)"
+        $DiskMap[$item.ID.ToString()] = "SCSI ID:$($item.ID) $($item.VendorProduct) REV:$($item.Revision) (SN:$($item.SerialNumber)) (Capacity:$($item.SizeGB) GB)"
       }
 
       if ($DEBUG -eq 1 ) {
@@ -327,7 +342,7 @@ Get-Content $inputFile | ForEach-Object {
                 
           if ($_.Line -match $keywordRebuildStartPattern) {
             $LDID = $Matches['LD']
-            $rebuild = Set-LDRebuild-Time -RebuildSeq $RebuildSeq -LD $LDID -Starting 1 -Time $foundTime
+            $rebuild = Set-LDRebuild-Time -RebuildList $RebuildSeq -LD $LDID -Starting 1 -Time $foundTime
             if ($rebuild -ne $null) {
               $RebuildSeq += $rebuild
             }
@@ -335,7 +350,7 @@ Get-Content $inputFile | ForEach-Object {
           else {
             if ($_.Line -match $keywordRebuildCmpltPattern) {
               $LDID = $Matches['LD']
-              Set-LDRebuild-Time -RebuildSeq $RebuildSeq -LD $LDID -Starting 0 -Time $foundTime
+              Set-LDRebuild-Time -RebuildList $RebuildSeq -LD $LDID -Starting 0 -Time $foundTime
             }
           }
         }
@@ -357,6 +372,12 @@ Get-Content $inputFile | ForEach-Object {
       $num = 0
       $startIndex = 0
       $FailureDrvList = New-Object System.Collections.Generic.List[string]
+      if ([int]$StorageConfig.maxTag -gt 8) {
+        $MaxNumOfBadSectors = $DefMaxNumOfBadSector * 4 + 3
+      }
+      else {
+        $MaxNumOfBadSectors = $DefMaxNumOfBadSector
+      }
       $sortedFinalAnalysisReport | ForEach-Object {
         if ($_.DriveID -ne $null) {
           if ($DEBUG -eq 1) {
@@ -367,7 +388,7 @@ Get-Content $inputFile | ForEach-Object {
             $disk = Get-DiskInMap -DisksList $StorageConfig.DiskList -ScsiId $ScsiId
             $LDID = $disk.LDID
             $lastTime = $_.StartTime
-            $rebuilding = Check-LDRebuiding -RebuildSeq $RebuildSeq -LD $LDID -Time $lastTime
+            $rebuilding = Check-LDRebuiding -RebuildList $RebuildSeq -LD $LDID -Time $lastTime
             if ($rebuilding -eq 1) {
               $BadSector = 0
             }
@@ -378,7 +399,7 @@ Get-Content $inputFile | ForEach-Object {
           }
           else {
             $num++
-            $rebuilding = Check-LDRebuiding -RebuildSeq $RebuildSeq -LD $LDID -Time $_.StartTime
+            $rebuilding = Check-LDRebuiding -RebuildList $RebuildSeq -LD $LDID -Time $_.StartTime
             if ($rebuilding -eq 0) {
               if ($ScsiId -eq $_.DriveID) {
                 if ([Math]::Abs(($_.StartTime - $lastTime).TotalDays) -gt $WeekThresholdDays) {
@@ -400,7 +421,7 @@ Get-Content $inputFile | ForEach-Object {
                 }
               }
               else {
-                if ($BadSector -le 9 -and $BadSector -gt 0) {
+                if ($BadSector -le $MaxNumOfBadSectors -and $BadSector -gt 0 -and $DriveIsFailed -eq 0) {
                   foreach ($drvEvent in $drvErrMatches) {
                     if ($drvEvent.Line -match 'CH(?:L)?[:\s]+(?<Channel>\d+)\s+ID:(?<ID>\d+)') {
                       $foundID = [int64]$Matches['ID']
@@ -408,6 +429,8 @@ Get-Content $inputFile | ForEach-Object {
                         if ($numOfDrvFail -eq 0) {
                           $analysisResultList.Add("QMS: $officeID SerialNumber: $idPart")
                           $analysisResultList.Add("  Maximum Drive Response Timeout: $($StorageConfig.maxRespTime)")
+                          $analysisResultList.Add("  Maximum Tag Count: $($StorageConfig.maxTag)")
+                          $analysisResultList.Add("  Disk I/O Timeout(Sec): $($StorageConfig.MaxIOTimeout)")
                         }
                         $numOfDrvFail++
                         $numOfDrvFailCase++
@@ -441,10 +464,12 @@ Get-Content $inputFile | ForEach-Object {
                 $DriveIsFailed = 0
               }
             }
-            if ($BadSector -gt 9 -and $DriveIsFailed -eq 0) {
+            if ($BadSector -gt $MaxNumOfBadSectors -and $DriveIsFailed -eq 0) {
               if ($numOfDrvFail -eq 0) {
                 $analysisResultList.Add("QMS: $officeID SerialNumber: $idPart")
                 $analysisResultList.Add("  Maximum Drive Response Timeout: $($StorageConfig.maxRespTime)")
+                $analysisResultList.Add("  Maximum Tag Count: $($StorageConfig.maxTag)")
+                $analysisResultList.Add("  Disk I/O Timeout(Sec): $($StorageConfig.MaxIOTimeout)")
               }
               $numOfDrvFail++
               $numOfDrvFailCase++
@@ -472,15 +497,15 @@ Get-Content $inputFile | ForEach-Object {
               $debList | ForEach-Object {
                 if ($DrvFailBeforeTmout -le 0) {
                   $foundID = -1
-                  # Drive ChlNo:21 ID:0 High latency detected(op: 2a, last request latency:1394ms, request amount:7 
                   if ($_ -match 'M62: Chl (?<CHL>\d+) Id (?<ID>[0-9a-fA-F]+)') {    
                     $foundID = [Convert]::ToInt64($Matches['ID'], 16)
                   }
                   else {
-                    if ($_.Line -match 'Drive ChlNo:(?<CHL>\d+) ID (?<ID>\d+) High latency detected') {
-                      $foundID = [Convert]::ToInt64($Matches['ID'], 10)
+                    #Drive ChlNo:8 ID:276 High latency detected(op: 0, last request latency:767ms, request amount:65535 
+                    if ($_ -match 'Drive ChlNo:(?<CHL>\d+) ID:(?<ID>\d+)') {
+                      $foundID = [Convert]::ToInt64($Matches['ID'])
                       if ($foundID -eq $ScsiId) {
-                        logList.Add("$($_), target id $($ScsiId), foundId $($foundId)")
+                        $logList.Add("$($_), target id $($ScsiId), foundId $($foundId)")
                       }
                     }
                   }
@@ -549,7 +574,7 @@ Get-Content $inputFile | ForEach-Object {
         }
       }
 
-      if ($BadSector -le 9 -and $BadSector -gt 0) {
+      if ($BadSector -le $MaxNumOfBadSectors -and $BadSector -gt 0 -and $DriveIsFailed -eq 0) {
         foreach ($drvEvent in $drvErrMatches) {
           if ($drvEvent.Line -match 'CH(?:L)?[:\s]+(?<Channel>\d+)\s+ID:(?<ID>\d+)') {
             $foundID = [int64]$Matches['ID']
@@ -557,6 +582,8 @@ Get-Content $inputFile | ForEach-Object {
               if ($numOfDrvFail -eq 0) {
                 $analysisResultList.Add("QMS: $officeID SerialNumber: $idPart")
                 $analysisResultList.Add("  Maximum Drive Response Timeout: $($StorageConfig.maxRespTime)")
+                $analysisResultList.Add("  Maximum Tag Count: $($StorageConfig.maxTag)")
+                $analysisResultList.Add("  Disk I/O Timeout(Sec): $($StorageConfig.MaxIOTimeout)")
               }
               $numOfDrvFail++
               $numOfDrvFailButNotFound++
@@ -586,6 +613,10 @@ Get-Content $inputFile | ForEach-Object {
         $analysisResultList.Add("     number of before error : $($numOfDrvFailBeforeErrInThisQMS)")
         $analysisResultList.Add("     number of after error: $($numOfDrvFailAfterErrInThisQMS)")
         $analysisResultList.Add("     number of not found: $($numOfDrvFailButNotFound)")
+        $NumOfNeedToCheck = $numOfDrvFail - ($numOfDrvFailBeforeErrInThisQMS + $numOfDrvFailAfterErrInThisQMS + $numOfDrvFailButNotFound)
+        if ($NumOfNeedToCheck -gt 0) {
+          $analysisResultList.Add("     number of need to check: $($NumOfNeedToCheck)")
+        }
         $analysisResultList.Add("-----------------------------------------------------------------------------------")
         $analysisResultList.Add("")
         $thisTicket.numOfFailDrv = $numOfDrvFail
