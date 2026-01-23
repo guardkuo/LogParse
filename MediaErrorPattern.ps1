@@ -1,3 +1,4 @@
+$MEDIRERROR_DEBUG = 0
 #220A0148: Drive fail
 #220A0188: Drive Failure
 #020AA182: clone
@@ -21,24 +22,27 @@
 #220A0302: ID:E334CFD Logical Drive ERROR: Rebuild Failed
 #220A0188: Name: Pool-1 Id: 3F9C16281CD22CF3 Pool Name: Logical_Drive_1 ID:E334CFD Logical Drive ERROR: CHL:12 ID:4 (JBODId:0 SlotNum:5)  Drive Failure
 #12084284: SMART-CH 12 ID:8 (JBODId:0 SlotNum:9) Drive Event Detected-Starting Clone
+#2208C187: CHL:12 ID:11 (JBODId:0 SlotNum:12) Drive ERROR: Scan Drive Failed
+#2208C107: CHL:9 ID:0 Drive ERROR: Scan Drive Failed
+#22084245 ERROR:SMART-CH 12 ID:74 (JBODId:1 SlotNum:15) Drive Event Detected-Clone Failed
 
 # 1. 設定關鍵字與檔案路徑
 # media error
 $keywords = @("02081382", "02081342", "02081341", "02081381")
 # drive fail, rebuild, clone, io error
-$keywords1 = @("21081282", "220A0188", "220A0187", "220A0185", "220A0148", "12084204", "12084203", "12084244", "22084205", "12084284")
+$keywords1 = @("21081282", "220A0188", "220A0187", "220A0185", "220A0148", "12084204", "12084203", "12084244", "22084205", "12084284", "2208C187", "21080282", "2208C107", "22084245")
 
 $LDRebuildStart = @("020A8306", "020A8305", "020A8304")
 $LDRebuildCmplt = @("020A8402", "220A0302")
 # events we want
-$keywords2 = @("220A0787", "22080581", "020AA182", "320A4509", "22084202", "21080282", "22080181", "220A1182", "12084243", "020AA142", "020AA281", "22080541", "22080542", "21080242", "22080141", "02081781", "22084285", "220A0749", "22081882") + $keywords + $keywords1 + $LDRebuildStart + $LDRebuildCmplt
+$keywords2 = @("220A0787", "22080581", "020AA182", "320A4509", "22084202", "22080181", "220A1182", "12084243", "020AA142", "020AA281", "22080541", "22080542", "21080242", "22080141", "02081781", "22084285", "220A0749", "22081882") + $keywords + $keywords1 + $LDRebuildStart + $LDRebuildCmplt
 
 
 $DrvErrKeywords = @("22080581", "22084285", "22080541", "22080141", "21080242") + $keywords1
 $LDRebuild = $LDRebuildCmplt + $LDRebuildStart
-
+# Drive Channel - Chl(8) Id(122) Device is missing, Reason(8h)
 # Drive ChlNo:21 ID:0 High latency detected(op: 2a, last request latency:1394ms, request amount:7 
-$debkeywords = @("latency", "M62:")
+$debkeywords = @("latency", "M62:", "Drive Channel")
 
 # 建立搜尋正則：鎖定第七欄
 $keywordPattern = ($keywords | ForEach-Object { [regex]::Escape($_) }) -join '|'
@@ -205,8 +209,7 @@ function Split-MediaError-Group ($LogsObj) {
   }
 
 
-  if ($DEBUG -eq 1 ) {
-    #Write-Host "Split-MediaError-Group "
+  if ($MEDIRERROR_DEBUG -eq 1 ) {
     Write-Host "`n[統計摘要]" -ForegroundColor Cyan
     Write-Host "總受損 GB 區域數: " ($groups.Count)
     Write-Host "總事件處理數 (跨週分割): " ($report.Count) -ForegroundColor Yellow
@@ -229,21 +232,18 @@ function Do-Analysis-MediaError-Timestamp ($LogsObj) {
     foreach ($entry in $sortedEntries) {
       # 時間間隔判定：超過10 min 則分割
       if ($null -ne $lastTime -and [Math]::Abs(($entry.Time - $lastTime).TotalMinutes) -gt $minThreshhold) {
-        $report | ForEach-Object {
-          if ($($_.DriveID) -eq $currentEventEntries[0].ID -and $_.StartGB -eq $currentEventEntries[0].GBZone) {
-            UpdateMediaErrorBadSector -Curr $_ -Entries $currentEventEntries
-            $duplicated = 1
-            break
-          }
-        }
         if ($duplicated -eq 0) {
           $report += MediaErrorBadSector -Entries $currentEventEntries
+        }
+        else {
+          $duplicated = 0
         }
 
         $currentEventEntries = @()
         $lastTime = $entry.Time
       }
       $currentEventEntries += $entry
+
       if ($null -eq $lastTime) {
         $lastTime = $entry.Time
       }
@@ -257,11 +257,11 @@ function Do-Analysis-MediaError-Timestamp ($LogsObj) {
   }
 
 
-  if ($DEBUG -eq 1 ) {
+  if ($MEDIRERROR_DEBUG -eq 1 ) {
     Write-Host "`n[統計摘要]" -ForegroundColor Cyan
     Write-Host "總受損 GB 區域數: " ($groups.Count)
     Write-Host "總事件處理數 (跨週分割): " ($report.Count) -ForegroundColor Yellow
-    $report | Sort-Object DriveID, StartTime | Select-Object DriveID, StartSector, GB_Zone, ErrorCount, StartTime, EndTime, Duration | Format-Table -AutoSize
+    $report | Format-Table -AutoSize
   }     
   return $report
 }
@@ -292,4 +292,18 @@ function Create-MediaErrorSect-Report($Report, $DiskMap) {
   }
       
   return $reportOutput
+}
+
+
+function New-SectorObject ($DriveID, $GBZone, $Time) {
+  return [PSCustomObject]@{
+    DriveID   = $DriveID
+    StartGB   = $GBZone
+    StartTime = $Time
+  }
+}
+
+function Add-SectorToList ($List, $DriveID, $GBZone, $Time) {
+  $NewItem = New-SectorObject -DriveID $DriveID -GBZone $GBZone -Time $Time
+  $null = $List.Add($NewItem)
 }
