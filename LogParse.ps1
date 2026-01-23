@@ -402,7 +402,6 @@ Get-Content $inputFile | ForEach-Object {
       $lastTime = $null
       $FailureDrvList = New-Object System.Collections.Generic.List[string]
       if ([int]$StorageConfig.maxTag -gt 8) {
-        #$MaxNumOfBadSectors = $DefMaxNumOfBadSector * 3 + 2
         $MaxNumOfBadSectors = [int]$StorageConfig.maxTag + 1
       }
       else {
@@ -424,11 +423,7 @@ Get-Content $inputFile | ForEach-Object {
               $lastTime = $_.StartTime
               $rebuilding = Check-LDRebuiding -RebuildList $RebuildSeq -LD $LDID -Time $lastTime
               if ($rebuilding -eq 1) {
-                #$BadSector = 0
                 $CurrDisk.IgnorenumOfBadSector++
-              }
-              else {
-                #$BadSector = 1
               }
             }
             else {
@@ -466,7 +461,6 @@ Get-Content $inputFile | ForEach-Object {
               $CurrDisk = Get-DiskInMap -DisksList $StorageConfig.DiskList -ScsiId $ScsiId
               if ($CurrDisk -ne $null) {
                 $workingReport.Clear()
-                #$BadSector = 0
                 Add-SectorToList -List $workingReport -DriveID $_.DriveID -GBZone $_.StartGB -Time $_.StartTime
                 $LDID = $CurrDisk.LDID
                 $lastTime = $_.StartTime
@@ -597,7 +591,6 @@ Get-Content $inputFile | ForEach-Object {
                     }
                   }
                 }
-                #$BadSector = 1
                 $ScsiId = $_.DriveID
                 $CurrDisk = Get-DiskInMap -DisksList $StorageConfig.DiskList -ScsiId $ScsiId
                 if ($CurrDisk -ne $null) {
@@ -736,15 +729,6 @@ Get-Content $inputFile | ForEach-Object {
                 }
               }
             }
-            else {
-              #if($DriveIsFailed -eq 1)
-              #{
-              #    if($CurrDisk -ne $null)
-              #    {
-              #        $CurrDisk.numOfBadSector++
-              #    }
-              #}
-            }
           }
         }
       }
@@ -825,8 +809,6 @@ Get-Content $inputFile | ForEach-Object {
 
       # Starting backup the result
       $baseName = $fileInfo.BaseName # 不含副檔名的檔名
-
-
       $patternMatchOutPath = Join-Path $OutPutDir "${baseName}_${timestamp}_mediaerror.txt"
 
       # 儲存與輸出至 xxx_mediaerror.txt
@@ -983,7 +965,6 @@ if ($analysisResultList.Count -gt 0) {
     $numOfFaidDrvNotFound += $ticket.numOfFaidDrvNotFound
     $numOfDrvNotFailed += $ticket.numOfDrvNotFailed
   }
-  #$numOfDrvNotFailed = $numOfDisk - $numOfBefore - $numOfAfter - $numOfFaidDrvNotFound
   $summaryList.Add("---        --     ------------ --------------------- --------------------")
   $summaryList.Add("     $($numOfQMS)                    $($numOfDisk)               $($numOfBefore)                $($numOfAfter)                           $($numOfFaidDrvNotFound)                        $($numOfDrvNotFailed)")
   $summaryFileTxt = $summaryFile + ".txt"
