@@ -30,7 +30,8 @@ $MEDIRERROR_DEBUG = 0
 # media error
 $keywords = @("02081382", "02081342", "02081341", "02081381")
 # drive fail, rebuild, clone, io error
-$keywords1 = @("21081282", "220A0188", "220A0187", "220A0185", "220A0148", "12084204", "12084203", "12084244", "22084205", "12084284", "2208C187", "21080282", "2208C107", "22084245")
+$keywordSmartError = @("22084245", "12084203", "12084244", "22084205", "12084204", "12084284")
+$keywords1 = @("21081282", "220A0188", "220A0187", "220A0185", "220A0148", "2208C187", "21080282", "2208C107") + $keywordSmartError
 
 $LDRebuildStart = @("020A8306", "020A8305", "020A8304")
 $LDRebuildCmplt = @("020A8402", "220A0302")
@@ -47,6 +48,8 @@ $debkeywords = @("latency", "M62:", "Drive Channel")
 # 建立搜尋正則：鎖定第七欄
 $keywordPattern = ($keywords | ForEach-Object { [regex]::Escape($_) }) -join '|'
 $pattern = "^\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+($keywordPattern)"
+
+$SmartErrorPattern = ($keywordSmartError | ForEach-Object { [regex]::Escape($_) }) -join '|'
 
 $keywordPattern1 = ($keywords1 | ForEach-Object { [regex]::Escape($_) }) -join '|'
 $pattern1 = "^\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+($keywordPattern1)"
