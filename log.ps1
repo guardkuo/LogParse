@@ -10,10 +10,13 @@ function Write-Ticket-Summary($cvsFilePath, $QmsDB) {
   # 透過 Select-Object 的自定義屬性，將外層資訊與內層 DiskList 合併
   foreach ($ticket in $QmsDB) {
     foreach ($disk in $ticket.DiskList) {
-   
+      $Path = $ticket.LogLocation
+      $PathTag = $ticket.QMS
+      $ExcelLink = "=HYPERLINK(""$Path"",""$PathTag"")"
       $AllDiskReport += [PSCustomObject]@{
         Model                = $ticket.ModelName
         QMS                  = $ticket.QMS
+        LogLocation          = $ExcelLink
         ChassisSN            = $ticket.SN  # 區分機箱 SN 與硬碟 SN
         MaxRespTime          = $ticket.MaxRespTime
         MaxTag               = $ticket.MaxTag
@@ -35,8 +38,12 @@ function Write-Ticket-Summary($cvsFilePath, $QmsDB) {
       }
     }
   }
-  $AllDiskReport | Select-Object Model, QMS, ChassisSN, MaxRespTime, MaxTag, MaxIOTimeout, DiskID, LDID, VendorProduct, SizeGB, Failure, FailureReason, numOfBadSector, IgnorenumOfBadSector, Timestamp | 
-  Export-Csv -Path $cvsFilePath -NoTypeInformation -Encoding UTF8
+  $cvsFile = $cvsFilePath + ".cvs"
+  $AllDiskReport | Select-Object Model, QMS, ChassisSN, MaxRespTime, MaxTag, MaxIOTimeout, DiskID, LDID, VendorProduct, SizeGB, Failure, FailureReason, numOfBadSector, IgnorenumOfBadSector, LogLocation, Timestamp | 
+  Export-Csv -Path $cvsFile -NoTypeInformation -Encoding UTF8
+  $excelPath = "summary.xlsx"
+  $AllDiskReport | Select-Object Model, LogLocation, ChassisSN, MaxRespTime, MaxTag, MaxIOTimeout, DiskID, LDID, VendorProduct, SizeGB, Failure, FailureReason, numOfBadSector, IgnorenumOfBadSector, Timestamp | 
+  Export-Excel -Path $excelPath -WorksheetName $cvsFilePath -AutoSize -BoldTopRow -FreezeTopRow
 }
 
 function Backup-Log-Files($FileInfo, $SerialNumber, $BaseName, $TimeStamp, $OutPutDir) {

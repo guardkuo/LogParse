@@ -4,7 +4,7 @@
 $DEBUG = 0
 $DEV_DEBUG = 0
 
-function Set-TicketMap($TicketMap, $QMS, $SerialNumber, $ReportTime) {
+function Set-TicketMap($TicketMap, $QMS, $SerialNumber, $ReportTime , $FilePath) {
   foreach ($ticket in $TicketMap) {
     if ($ticket.QMS -eq $QMS -and $ticket.SN -eq $SerialNumber) {
       return $null
@@ -15,6 +15,7 @@ function Set-TicketMap($TicketMap, $QMS, $SerialNumber, $ReportTime) {
     QMS                   = $QMS
     SN                    = $SerialNumber
     reportTime            = $ReportTime
+    LogLocation           = $FilePath
     MaxRespTime           = 0
     MaxTag                = 0
     MaxIOTimeout          = 0
@@ -52,7 +53,7 @@ function Get-DiskMap($configPath) {
   $maxTag = if ($respMatch.Success) { $respMatch.Groups['Value'].Value } else { "8" }
   $regexResp = 'Disk I/O Timeout\(Sec\):\s+(?<Value>\S+)'
   $respMatch = [regex]::Match($configContent, $regexResp)
-  $maxIOTimeOut = if ($respMatch.Success) { $respMatch.Groups['Value'].Value } else { "N/A" }
+  $maxIOTimeOut = if ($respMatch.Success) { $respMatch.Groups['Value'].Value } else { "30" }
 
   $DiskList = New-Object System.Collections.Generic.List[PSCustomObject]
   #Enclosure - Slot 15
@@ -215,6 +216,8 @@ $AnalysisQMSTicketDB = New-Object System.Collections.Generic.List[string]
 $summaryList = New-Object System.Collections.Generic.List[string]
 $summary1List = New-Object System.Collections.Generic.List[string]
 $errorlogList = New-Object System.Collections.Generic.List[string]
+$processfileList = New-Object System.Collections.Generic.List[string]
+$unprocessfileList = New-Object System.Collections.Generic.List[string]
 $logList = New-Object System.Collections.Generic.List[string]
 $analysisResultList = New-Object System.Collections.Generic.List[string]
 $workingReport = [System.Collections.Generic.List[PSCustomObject]]::new()
@@ -234,6 +237,8 @@ Get-Content $inputFile | ForEach-Object {
     $MediaErr_matches = Get-MediaErrorData -logFilePath $evtPath
     $matchCount = $MediaErr_matches.Count
     $DrvFailDetected = 0
+    $LogDirection = Split-Path -Path $evtPath -Parent
+    
         
     if ($matchCount -ge $minMatchCount) {
       $fileInfo = Get-Item $evtPath
@@ -256,11 +261,12 @@ Get-Content $inputFile | ForEach-Object {
         }
       }
 
-      $thisTicket = Set-TicketMap -TicketMap $AllQMSTicketDB -QMS $officeID -SerialNumber $idPart -ReportTime $timestamp
+      $thisTicket = Set-TicketMap -TicketMap $AllQMSTicketDB -QMS $officeID -SerialNumber $idPart -ReportTime $timestamp -FilePath $LogDirection
       if ( $thisTicket -eq $null) {
         $errorlogList.Add("忽略檔案: $configFilePath, $($officeID) 已分析")
         return
       }
+      $processfileList.Add($evtPath)
       Write-Host "$($evtPath)........"
       $StorageConfig = Get-DiskMap -configPath $configfilePath
       
@@ -1025,6 +1031,10 @@ Get-Content $inputFile | ForEach-Object {
           write-host "[跳過] 檔案: $($evtPath) (僅 $matchCount 筆，未達門檻)" -ForegroundColor Gray
         }
         $logList.Add("[跳過] 檔案: $($evtPath) (僅 $matchCount 筆，未達門檻)")
+        $processfileList.Add($evtPath)
+      }
+      else {
+        $unprocessfileList.Add($evtPath)
       }
     }
   }
@@ -1086,11 +1096,14 @@ if ($analysisResultList.Count -gt 0) {
   if ($analysisDisks.Count -gt 0) {
     $analysisDisks | Format-Table -AutoSize | Out-File -FilePath $summaryFileTxt -Append -Encoding utf8
   }
-  $summaryFileCSV = $summaryFile + ".csv"
+  $summaryFileCSV = $summaryFile
   Write-Ticket-Summary -cvsFilePath $summaryFileCSV -QmsDB $AllQMSTicketDB
-  $summaryFileCSV = $summaryFile + "_unfailure.csv"
+  $summaryFileCSV = $summaryFile + "_unfailure"
   Write-Ticket-Summary -cvsFilePath $summaryFileCSV -QmsDB $AnalysisQMSTicketDB
 }
+
+$unprocessfileList | Out-File -FilePath "unprocessedfile.txt" -Encoding utf8
+$processfileList | Out-File -FilePath "processedfile.txt"-Encoding utf8
 
 write-host "Total case: $($numOfDrvFailCase), Failed Drive before errors: $($numOfFailDrvBeforeErr), Failed Drive after errors: $($numOfFailDrvAfterErr),  Drive Failure but not fould: $($numOfFaidDrvNotFound), Drive analysis but not Fail: $($numOfDrvNotFailed)"
 pause
