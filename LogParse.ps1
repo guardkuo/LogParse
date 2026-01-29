@@ -3,6 +3,37 @@
 #Requires -Version 7.1
 $DEBUG = 0
 $DEV_DEBUG = 0
+$IOTimeout = 1
+$SmartDetect = 2
+$DrvFailed = 3
+$BadSector = 0
+$MaxBadSector = 0
+
+function Get-MaxValue([int32]$Value1, [int32]$Value2) {
+  if ($Value1 -gt $Value2) {
+    return $Value1
+  }
+  else {
+    return $Value2
+  }
+}
+
+function Get-Drive-Failure-Event($Disk, $ScsiId, $drvErrLog) {
+  foreach ($drvEvent in $drvErrLog) {
+    if ($drvEvent.Line -match 'CH(?:L)?[:\s]+(?<Channel>\d+)\s+ID:(?<ID>\d+)') {
+      $foundID = [int64]$Matches['ID']
+      if ($foundID -eq $ScsiId) {
+        if ($null -ne $Disk) {
+          $Disk.Failure = 2     # failure but not found
+          $Disk.numOfBadSector = Get-MaxValue -Value1 $MaxBadSector -Value2 $BadSector
+          $Disk.FailureReason = $IOTimeout
+        }
+        return $drvEvent
+      }
+    }
+  }
+  return $null
+}
 
 function Set-TicketMap($TicketMap, $QMS, $SerialNumber, $ReportTime , $FilePath) {
   foreach ($ticket in $TicketMap) {
@@ -34,10 +65,6 @@ function Update-TicketMap($TicketMap, $Conf) {
   $TicketMap.MaxTag = $Conf.MaxTag
   $TicketMap.MaxIOTimeout = $Conf.MaxIOTimeout
 }
-
-$IOTimeout = 1
-$SmartDetect = 2
-$DrvFailed = 3
 
 # --- [強化] 自動建立磁碟對照表函式 ---
 function Get-DiskMap($configPath) {
@@ -132,7 +159,7 @@ function Get-OfficeID {
   return "XXX-Unknown"
 }
 
-function DateTime-Before ([DateTime]$Time1, [DateTime]$Time2) {
+function Test-DateTime-Before ([DateTime]$Time1, [DateTime]$Time2) {
     
   if ((($Time1 - $Time2).TotalMinutes) -gt 0) {
     return -1
@@ -146,13 +173,13 @@ function Set-LDRebuild-Time($RebuildList, $LD, $Starting, [DateTime]$Time) {
   foreach ($rebuild in $RebuildList) {
     if ($rebuild.LDID -eq $LD) {
       if ($Starting -eq 1 ) {
-        if ($rebuild.EndTime -eq $null) {
+        if ($null -eq $rebuild.EndTime) {
           $rebuild.StartTime = $time
           return $null
         }
       }
       else {
-        if ($rebuild.EndTime -eq $null -and $rebuild.StartTime -ne $null) {
+        if ($null -eq $rebuild.EndTime -and $null -ne $rebuild.StartTime) {
           $rebuild.EndTime = $time
           return $null
         }
@@ -170,13 +197,13 @@ function Set-LDRebuild-Time($RebuildList, $LD, $Starting, [DateTime]$Time) {
   }
 }
 
-function Check-LDRebuiding($RebuildList, $LD, $Time) {
-  if ($Time -eq $null) {
+function Trace-LDRebuiding($RebuildList, $LD, $Time) {
+  if ($null -eq $Time) {
     return 0
   }
   foreach ($rebuild in $RebuildList) {
     if ($rebuild.LDID -eq $LD) {
-      if ($rebuild.EndTime -ne $null -and $rebuild.StartTime -ne $null) {
+      if ($null -ne $rebuild.EndTime -and $null -ne $rebuild.StartTime) {
         if (($rebuild.StartTime - $Time).TotalMinutes -le 0 -and ($Time - $rebuild.EndTime).TotalMinutes -le 0) {
           return 1
         }
@@ -262,7 +289,7 @@ Get-Content $inputFile | ForEach-Object {
       }
 
       $thisTicket = Set-TicketMap -TicketMap $AllQMSTicketDB -QMS $officeID -SerialNumber $idPart -ReportTime $timestamp -FilePath $LogDirection
-      if ( $thisTicket -eq $null) {
+      if ( $null -eq $thisTicket) {
         $errorlogList.Add("忽略檔案: $configFilePath, $($officeID) 已分析")
         return
       }
@@ -272,7 +299,7 @@ Get-Content $inputFile | ForEach-Object {
       
 
       # 6. 建立最終的 $DiskMap (以 ID 為 Key 的 Hashtable)
-      if ($StorageConfig -ne $null) {
+      if ($null -ne $StorageConfig) {
         Update-TicketMap -TicketMap $thisTicket -Conf $StorageConfig
         $DiskMap = @{}
         foreach ($item in $StorageConfig.DiskList) {
@@ -298,7 +325,7 @@ Get-Content $inputFile | ForEach-Object {
 
       $finalReport = Split-MediaError-Group -LogsObj $parsedLogsObj
 
-      $analysisReport = Do-Analysis-MediaError-Timestamp -LogsObj $parsedLogsObj
+      $analysisReport = Resolve-MediaError-Timestamp -LogsObj $parsedLogsObj
 
       # 最終排序：先按 ID 排，再按 Sector 數值排
       $sortedFinalReport = $finalReport | Sort-Object DriveID, SectorDec
@@ -355,7 +382,7 @@ Get-Content $inputFile | ForEach-Object {
         }
       }
 
-      $MediaErrorSectReportOutput = Create-MediaErrorSect-Report -Report $finalReport -DiskMap $DiskMap
+      $MediaErrorSectReportOutput = Save-MediaErrorSect-Report -Report $finalReport -DiskMap $DiskMap
       # --- 處理個別錯誤檔案 (完整結果) ---
       $debFileName = "$idPart.deb.0.5.full.txt"
       $debPath = Join-Path $fileInfo.DirectoryName $debFileName
@@ -384,7 +411,7 @@ Get-Content $inputFile | ForEach-Object {
           if ($_.Line -match $keywordRebuildStartPattern) {
             $LDID = $Matches['LD']
             $rebuild = Set-LDRebuild-Time -RebuildList $RebuildSeq -LD $LDID -Starting 1 -Time $foundTime
-            if ($rebuild -ne $null) {
+            if ($null -ne $rebuild) {
               $RebuildSeq += $rebuild
             }
           }
@@ -422,18 +449,18 @@ Get-Content $inputFile | ForEach-Object {
       $CurrDisk = $null
       $workingReport.Clear()
       $sortedFinalAnalysisReport | ForEach-Object {
-        if ($_.DriveID -ne $null) {
+        if ($null -ne $_.DriveID) {
           if ($DEBUG -eq 1) {
             write-host "ID: $($_.DriveID) GB: $($_.StartGB) $($_.StartTime) $($_.ErrorCount)" -ForegroundColor Gray
           }
           if ($ScsiId -eq -1) {
             $ScsiId = $_.DriveID
             $CurrDisk = Get-DiskInMap -DisksList $StorageConfig.DiskList -ScsiId $ScsiId
-            if ($CurrDisk -ne $null) {
+            if ($null -ne $CurrDisk) {
               Add-SectorToList -List $workingReport -DriveID $_.DriveID -GBZone $_.StartGB -Time $_.StartTime
               $LDID = $CurrDisk.LDID
               $lastTime = $_.StartTime
-              $rebuilding = Check-LDRebuiding -RebuildList $RebuildSeq -LD $LDID -Time $lastTime
+              $rebuilding = Trace-LDRebuiding -RebuildList $RebuildSeq -LD $LDID -Time $lastTime
               if ($rebuilding -eq 1) {
                 $CurrDisk.IgnorenumOfBadSector++
               }
@@ -453,56 +480,34 @@ Get-Content $inputFile | ForEach-Object {
               # parse current disk
               
               if ($BadSector -le $MaxNumOfBadSectors -and $BadSector -gt $DefMinNumOfBadSector -and $DriveIsFailed -eq 0) {
-                if ($CurrDisk -ne $null) {
+                if ($null -ne $CurrDisk) {
                   if ($CurrDisk.ID -ne $ScsiId) {
                     $errorlogList.Add("$($officeID): SCSI ID $($CurrDisk.ID) 和目前使用的 ID $($ScsiId) 不同。")
                   }
-                  $BreakInLoop = 0
-                  foreach ($drvEvent in $drvErrMatches) {
-                    if ($drvEvent.Line -match 'CH(?:L)?[:\s]+(?<Channel>\d+)\s+ID:(?<ID>\d+)') {
-                      $foundID = [int64]$Matches['ID']
-                      if ($foundID -eq $ScsiId) {
-                        $numOfDrvFail++
-                        $numOfDrvFailButNotFound++
-                        $numOfDrvFailCase++
-                        $analysisResultList.Add("")
-                        $currentVendor = $DiskMap[$ScsiId.ToString()]
-                        if ($currentVendor) {
-                          $analysisResultList.Add("    $($currentVendor)");
-                          $FailureDrvList += $currentVendor
-                        }
-                        $DiskModel = Set-DiskModel -DiskModelMap $analysisDisks -VendorProduct $CurrDisk.VendorProduct
-                        if ( $DiskModel -ne $null) {
-                          $analysisDisks += $DiskModel
-                        }
-                        if ($MaxBadSector -gt $BadSector) {
-                          $CurrDisk.numOfBadSector = $MaxBadSector
-                        }
-                        else {
-                          $CurrDisk.numOfBadSector = $BadSector
-                        }
-                        $CurrDisk.Failure = 2     # failure but not found
-                        $CurrDisk.FailureReason = $IOTimeout
-                        
-                        $thisTicket.DiskList += $CurrDisk
-                      
-                        $analysisResultList.Add($drvEvent.Line)
-                        $logList.Add($drvEvent.Line)
-                        $BreakInLoop = 1
-                        break
-                      }
+                  $drvEvent = Get-Drive-Failure-Event -Disk $CurrDisk -ScsiId $ScsiId -drvErrLog $drvErrMatches
+                  if ($null -ne $drvEvent) {
+                    $numOfDrvFail++
+                    $numOfDrvFailCase++
+                    $numOfDrvFailButNotFound++
+                    $analysisResultList.Add("")
+                    $currentVendor = $DiskMap[$ScsiId.ToString()]
+                    if ($currentVendor) {
+                      $analysisResultList.Add("    $($currentVendor)");
+                      $FailureDrvList += $currentVendor
                     }
-                  }
-                  if ( $BreakInLoop -eq 0) {
-                    if ($MaxBadSector -gt $BadSector) {
-                      $CurrDisk.numOfBadSector = $MaxBadSector
-                    }
-                    else {
-                      $CurrDisk.numOfBadSector = $BadSector
+                    $DiskModel = Set-DiskModel -DiskModelMap $analysisDisks -VendorProduct $CurrDisk.VendorProduct
+                    if ( $null -ne $DiskModel) {
+                      $analysisDisks += $DiskModel
                     }
                     $thisTicket.DiskList += $CurrDisk
+
+                    $analysisResultList.Add($drvEvent.Line)
+                    $logList.Add($drvEvent.Line)
+                  }
+                  else {
+                    $CurrDisk.numOfBadSector = Get-MaxValue -Value1 $MaxBadSector -Value2 $BadSector
+                    $thisTicket.DiskList += $CurrDisk
                     $numOfAnalysisDrv++
-                    
                   }
                 }
                 else {
@@ -512,10 +517,7 @@ Get-Content $inputFile | ForEach-Object {
               }
               else {
                 if ($BadSector -ne 0) {
-                  $CurrDisk.numOfBadSector = $workingReport.Count
-                  if ($CurrDisk.numOfBadSector -lt $MaxBadSector) {
-                    $CurrDisk.numOfBadSector = $MaxBadSector
-                  }
+                  $CurrDisk.numOfBadSector = Get-MaxValue -Value1 $MaxBadSector -Value2 $workingReport.Count
                 }
                 $DriveIsFailed = 0
               }
@@ -524,7 +526,7 @@ Get-Content $inputFile | ForEach-Object {
               $workingReport.Clear()
               $BadSector = $workingReport.Count
               $MaxBadSector = $BadSector
-              if ($CurrDisk -ne $null) {
+              if ($null -ne $CurrDisk) {
                 Add-SectorToList -List $workingReport -DriveID $_.DriveID -GBZone $_.StartGB -Time $_.StartTime
                 $LDID = $CurrDisk.LDID
                 $lastTime = $_.StartTime
@@ -534,7 +536,7 @@ Get-Content $inputFile | ForEach-Object {
                 $ScsiId = -1
               }
             }
-            $rebuilding = Check-LDRebuiding -RebuildList $RebuildSeq -LD $LDID -Time $_.StartTime
+            $rebuilding = Trace-LDRebuiding -RebuildList $RebuildSeq -LD $LDID -Time $_.StartTime
             if ($rebuilding -eq 0) {
               if ($ScsiId -eq $_.DriveID) {
                 $currItem = $_
@@ -631,48 +633,33 @@ Get-Content $inputFile | ForEach-Object {
                   write-host("Go to next SCSI ID: $($_.DriveID)")
                 }
                 if ($BadSector -le $MaxNumOfBadSectors -and $BadSector -gt $DefMinNumOfBadSector -and $DriveIsFailed -eq 0) {
-                  foreach ($drvEvent in $drvErrMatches) {
-                    if ($drvEvent.Line -match 'CH(?:L)?[:\s]+(?<Channel>\d+)\s+ID:(?<ID>\d+)') {
-                      $foundID = [int64]$Matches['ID']
-                      if ($foundID -eq $ScsiId) {
-                        if ($numOfDrvFail -eq 0) {
-                          Write-Ticket-Title -LogList $analysisResultList -Qms $officeID -SerialNumber $idPart -StorageConf $StorageConfig
-                        }
-                        $numOfDrvFail++
-                        $numOfDrvFailCase++
-                        $numOfDrvFailButNotFound++
-                        $analysisResultList.Add("")
-                        $currentVendor = $DiskMap[$ScsiId.ToString()]
-                        if ($currentVendor) {
-                          $analysisResultList.Add("    $($currentVendor)");
-                          $FailureDrvList += $currentVendor
-                        }
-                        if ($CurrDisk -ne $null) {
-                          $DiskModel = Set-DiskModel -DiskModelMap $analysisDisks -VendorProduct $CurrDisk.VendorProduct
-                          if ( $DiskModel -ne $null) {
-                            $analysisDisks += $DiskModel
-                          }
-                          $CurrDisk.Failure = 2     # failure but not found
-                          if ($MaxBadSector -gt $BadSector) {
-                            $CurrDisk.numOfBadSector = $MaxBadSector
-                          }
-                          else {
-                            $CurrDisk.numOfBadSector = $BadSector
-                          }
-                          $CurrDisk.FailureReason = $IOTimeout
-                          
-                          $thisTicket.DiskList += $CurrDisk
-                        }
-                        $analysisResultList.Add($drvEvent.Line)
-                        $logList.Add($drvEvent.Line)
-                        break
-                      }
+                  $drvEvent = Get-Drive-Failure-Event -Disk $CurrDisk -ScsiId $ScsiId -drvErrLog $drvErrMatches
+                  if ($null -ne $drvEvent) {
+                    if ($numOfDrvFail -eq 0) {
+                      Write-Ticket-Title -LogList $analysisResultList -Qms $officeID -SerialNumber $idPart -StorageConf $StorageConfig
                     }
+                    $numOfDrvFail++
+                    $numOfDrvFailCase++
+                    $numOfDrvFailButNotFound++
+                    $analysisResultList.Add("")
+                    $currentVendor = $DiskMap[$ScsiId.ToString()]
+                    if ($currentVendor) {
+                      $analysisResultList.Add("    $($currentVendor)");
+                      $FailureDrvList += $currentVendor
+                    }
+                    $DiskModel = Set-DiskModel -DiskModelMap $analysisDisks -VendorProduct $CurrDisk.VendorProduct
+                    if ( $null -ne $DiskModel) {
+                      $analysisDisks += $DiskModel
+                    }
+                    $thisTicket.DiskList += $CurrDisk
+
+                    $analysisResultList.Add($drvEvent.Line)
+                    $logList.Add($drvEvent.Line)
                   }
                 }
                 $ScsiId = $_.DriveID
                 $CurrDisk = Get-DiskInMap -DisksList $StorageConfig.DiskList -ScsiId $ScsiId
-                if ($CurrDisk -ne $null) {
+                if ($null -ne $CurrDisk) {
                   $LDID = $CurrDisk.LDID
                   $lastTime = $_.StartTime
                   $DriveIsFailed = 0
@@ -703,16 +690,11 @@ Get-Content $inputFile | ForEach-Object {
                 $analysisResultList.Add("    $($currentVendor)");
                 $FailureDrvList += $currentVendor
               }
-              if ($CurrDisk -ne $null) {
-                if ($MaxBadSector -gt $BadSector) {
-                  $CurrDisk.numOfBadSector = $MaxBadSector
-                }
-                else {
-                  $CurrDisk.numOfBadSector = $BadSector
-                }
+              if ($null -ne $CurrDisk) {
+                $CurrDisk.numOfBadSector = Get-MaxValue -Value1 $MaxBadSector -Value2 $BadSector
                 $CurrDisk.Failure = 1
                 $DiskModel = Set-DiskModel -DiskModelMap $analysisDisks -VendorProduct $CurrDisk.VendorProduct
-                if ( $DiskModel -ne $null) {
+                if ( $null -ne $DiskModel) {
                   $analysisDisks += $DiskModel
                 }
                 
@@ -736,14 +718,15 @@ Get-Content $inputFile | ForEach-Object {
                   $foundID = -1
                   if ($_ -match 'M62: Chl (?<CHL>\d+) Id (?<ID>[0-9a-fA-F]+)') {    
                     $foundID = [Convert]::ToInt64($Matches['ID'], 16)
-                    $reason = 1
+                    if ($foundID -eq $ScsiId) {
+                      $reason = 1
+                    }
                   }
                   else {
                     #Drive ChlNo:8 ID:276 High latency detected(op: 0, last request latency:767ms, request amount:65535 
                     if ($_ -match 'Drive ChlNo:(?<CHL>\d+) ID:(?<ID>\d+)') {
                       $foundID = [Convert]::ToInt64($Matches['ID'])
                       if ($foundID -eq $ScsiId) {
-                        $logList.Add("$($_), target id $($ScsiId), foundId $($foundId)")
                         $reason = 2
                       }
                     }
@@ -752,7 +735,6 @@ Get-Content $inputFile | ForEach-Object {
                       if ($_ -match 'Drive Channel - Chl\((?<CHL>\d+)\) Id\((?<ID>\d+)\)') {
                         $foundID = [Convert]::ToInt64($Matches['ID'])
                         if ($foundID -eq $ScsiId) {
-                          $logList.Add("$($_), target id $($ScsiId), foundId $($foundId)")
                           $reason = 3
                         }
                       }
@@ -762,7 +744,7 @@ Get-Content $inputFile | ForEach-Object {
                     if ($FailAlogDetected -eq 0 -and $_ -match '(?<DateTime>\d{2}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})') {
                       # 轉成 DateTime 物件進行精確的時間數值排序
                       $foundTime = [DateTime]::ParseExact($Matches['DateTime'], "yy-MM-dd HH:mm:ss", $null)
-                      if ($foundTime -ne $null) {
+                      if ($null -ne $foundTime) {
                         if (($EventTime - $foundTime).TotalMinutes -le 0) {
                           if ($DrvFailBeforeTmout -lt 0) {
                             $DrvFailBeforeTmout = $reason
@@ -770,6 +752,7 @@ Get-Content $inputFile | ForEach-Object {
                           $FailAlogDetected = 1
                           $analysisResultList.Add($_)
                           $logList.Add($_)
+                          return
                         }
                         else {
                           $DrvFailBeforeTmout = 0
@@ -788,7 +771,7 @@ Get-Content $inputFile | ForEach-Object {
                   if ($foundID -eq $ScsiId) {
                     if ($FailAlogDetected -eq 0 -and $_.Line -match '(?<Date>\d{2}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})') {
                       $foundTime = [DateTime]::ParseExact($Matches['Date'], "yy-MM-dd HH:mm:ss", $null)
-                      if ($foundTime -ne $null) {
+                      if ($null -ne $foundTime) {
                         if (($EventTime - $foundTime).TotalMinutes -le 0) {
                           if ($DrvFailBeforeErr -lt 0) {
                             $DrvFailBeforeErr = 1
@@ -796,6 +779,7 @@ Get-Content $inputFile | ForEach-Object {
                           $FailAlogDetected = 1
                           $analysisResultList.Add($_.Line)
                           $logList.Add($_.Line)
+                          return
                         }
                         else {
                           if ($_.Line -match $SmartErrorPattern) {
@@ -834,54 +818,33 @@ Get-Content $inputFile | ForEach-Object {
 
       if ($BadSector -le $MaxNumOfBadSectors -and $BadSector -gt $DefMinNumOfBadSector -and $DriveIsFailed -eq 0) {
         $CurrDisk = Get-DiskInMap -DisksList $StorageConfig.DiskList -ScsiId $ScsiId
-        if ($CurrDisk -ne $null) {
-          $BreakInLoop = 0
-          foreach ($drvEvent in $drvErrMatches) {
-            if ($drvEvent.Line -match 'CH(?:L)?[:\s]+(?<Channel>\d+)\s+ID:(?<ID>\d+)') {
-              $foundID = [int64]$Matches['ID']
-              if ($foundID -eq $ScsiId) {
-                if ($numOfDrvFail -eq 0) {
-                  Write-Ticket-Title -LogList $analysisResultList -Qms $officeID -SerialNumber $idPart -StorageConf $StorageConfig
-                }
-                $numOfDrvFail++
-                $numOfDrvFailButNotFound++
-                $numOfDrvFailCase++
-                $analysisResultList.Add("")
-                $currentVendor = $DiskMap[$ScsiId.ToString()]
-                if ($currentVendor) {
-                  $analysisResultList.Add("    $($currentVendor)");
-                  $FailureDrvList += $currentVendor
-                }
-                $DiskModel = Set-DiskModel -DiskModelMap $analysisDisks -VendorProduct $CurrDisk.VendorProduct
-                if ( $DiskModel -ne $null) {
-                  $analysisDisks += $DiskModel
-                }
-                
-                if ($MaxBadSector -gt $BadSector) {
-                  $CurrDisk.numOfBadSector = $MaxBadSector
-                }
-                else {
-                  $CurrDisk.numOfBadSector = $BadSector
-                }
-                $CurrDisk.Failure = 2     # failure but not found
-                $CurrDisk.FailureReason = $IOTimeout
-                
-                $thisTicket.DiskList += $CurrDisk
-              
-                $analysisResultList.Add($drvEvent.Line)
-                $logList.Add($drvEvent.Line)
-                $BreakInLoop = 1
-                break
-              }
+        if ($null -ne $CurrDisk) {
+          $drvEvent = Get-Drive-Failure-Event -Disk $CurrDisk -ScsiId $ScsiId -drvErrLog $drvErrMatches
+          
+          if ($null -ne $drvEvent) {
+            if ($numOfDrvFail -eq 0) {
+              Write-Ticket-Title -LogList $analysisResultList -Qms $officeID -SerialNumber $idPart -StorageConf $StorageConfig
             }
+            $numOfDrvFail++
+            $numOfDrvFailCase++
+            $numOfDrvFailButNotFound++
+            $analysisResultList.Add("")
+            $currentVendor = $DiskMap[$ScsiId.ToString()]
+            if ($currentVendor) {
+              $analysisResultList.Add("    $($currentVendor)");
+              $FailureDrvList += $currentVendor
+            }
+            $DiskModel = Set-DiskModel -DiskModelMap $analysisDisks -VendorProduct $CurrDisk.VendorProduct
+            if ( $null -ne $DiskModel) {
+              $analysisDisks += $DiskModel
+            }
+            $thisTicket.DiskList += $CurrDisk
+
+            $analysisResultList.Add($drvEvent.Line)
+            $logList.Add($drvEvent.Line)
           }
-          if ( $BreakInLoop -eq 0) {
-            if ($MaxBadSector -gt $BadSector) {
-              $CurrDisk.numOfBadSector = $MaxBadSector
-            }
-            else {
-              $CurrDisk.numOfBadSector = $BadSector
-            }
+          else {
+            $CurrDisk.numOfBadSector = Get-MaxValue -Value1 $MaxBadSector -Value2 $BadSector
             $thisTicket.DiskList += $CurrDisk
             $numOfAnalysisDrv++
           }
@@ -891,13 +854,8 @@ Get-Content $inputFile | ForEach-Object {
         }
       }
       else {
-        if ($CurrDisk -ne $null) {
-          if ($MaxBadSector -gt $BadSector) {
-            $CurrDisk.numOfBadSector = $MaxBadSector
-          }
-          else {
-            $CurrDisk.numOfBadSector = $BadSector
-          }
+        if ($null -ne $CurrDisk) {
+          $CurrDisk.numOfBadSector = Get-MaxValue -Value1 $MaxBadSector -Value2 $BadSector
         }
         $DriveIsFailed = 0
       }
@@ -1006,7 +964,9 @@ Get-Content $inputFile | ForEach-Object {
           
           # 備份原始 .evt 檔
           # 目的地檔名維持原樣，但存放在 $OutPutDir 下
-          Backup-Log-Files -FileInfo $fileInfo -SerialNumber $idPart -BaseName $baseName -TimeStamp $timestamp -OutPutDir $OutPutDir
+          if ($BackupLogFile -eq 1) {
+            Backup-Log-Files -FileInfo $fileInfo -SerialNumber $idPart -BaseName $baseName -TimeStamp $timestamp -OutPutDir $OutPutDir
+          }
           if ($DEBUG -eq 1) {
             write-host "[成功] $officeID \ $idPart -> 檔案已儲存" -ForegroundColor Green
           }
@@ -1021,7 +981,9 @@ Get-Content $inputFile | ForEach-Object {
         if ($DrvFailDetected -eq 1) {
           $analysisResultList.Add("[跳過] 檔案: $($evtPath) (Drive還沒失效)")
         }
-        Backup-Log-Files -FileInfo $fileInfo -SerialNumber $idPart -BaseName $baseName -TimeStamp $timestamp -OutPutDir $OutPutDir
+        if ($BackupLogFile -eq 1) {
+          Backup-Log-Files -FileInfo $fileInfo -SerialNumber $idPart -BaseName $baseName -TimeStamp $timestamp -OutPutDir $OutPutDir
+        }
       }
     }
     else {
@@ -1031,7 +993,7 @@ Get-Content $inputFile | ForEach-Object {
           write-host "[跳過] 檔案: $($evtPath) (僅 $matchCount 筆，未達門檻)" -ForegroundColor Gray
         }
         $logList.Add("[跳過] 檔案: $($evtPath) (僅 $matchCount 筆，未達門檻)")
-        $processfileList.Add($evtPath)
+        $unprocessfileList.Add($evtPath)
       }
       else {
         $unprocessfileList.Add($evtPath)
@@ -1100,6 +1062,7 @@ if ($analysisResultList.Count -gt 0) {
   Write-Ticket-Summary -cvsFilePath $summaryFileCSV -QmsDB $AllQMSTicketDB
   $summaryFileCSV = $summaryFile + "_unfailure"
   Write-Ticket-Summary -cvsFilePath $summaryFileCSV -QmsDB $AnalysisQMSTicketDB
+  Write-Ticket-Summary-Readme
 }
 
 $unprocessfileList | Out-File -FilePath "unprocessedfile.txt" -Encoding utf8

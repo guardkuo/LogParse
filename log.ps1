@@ -5,6 +5,25 @@ function Write-Ticket-Title($LogList, $Qms, $SerialNumber, $StorageConf) {
   $LogList.Add("  Disk I/O Timeout(Sec): $($StorageConf.MaxIOTimeout)")
 }
 
+#Variable	Value
+$Readme = @(
+  "Failure",
+  "1:Bad sectors的數量超過threshold",
+  "2:Bad sectors的數量小於threshold, 但HDD有error",
+  "0:Bad sectors的數量小於threshold, 而且HDD沒有error",
+  "當Failure為1時, FailureReason可以判斷HDD error發生時間及型態",
+  "FailureReason",
+  "1:Bad sectors的數量超過threshold, 但沒有任何error",
+  "2:	第一個error是Smart Error, 而且時間早於Bad sectors的數量超過threshold",
+  "3:	第一個error是Drive Fail, 而且時間早於Bad sectors的數量超過threshold",
+  "4:	第一個error是LUN reset, 而且時間早於Bad sectors的數量超過threshold",
+  "5:	第一個error是IO high latency, 而且時間早於Bad sectors的數量超過threshold",
+  "6:	第一個error是Target reset, 而且時間早於Bad sectors的數量超過threshold",
+  "-1:	第一個error是Smart Error, 而且時間早於Bad sectors的數量超過threshold")
+
+function Write-Ticket-Summary-Readme() {
+  $Readme | Export-Excel -Path "summary.xlsx" -WorksheetName "Readme" -AutoSize -BoldTopRow -FreezeTopRow   
+}
 function Write-Ticket-Summary($cvsFilePath, $QmsDB) {
   $AllDiskReport = New-Object System.Collections.Generic.List[string]
   # 透過 Select-Object 的自定義屬性，將外層資訊與內層 DiskList 合併

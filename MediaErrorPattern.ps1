@@ -221,7 +221,7 @@ function Split-MediaError-Group ($LogsObj) {
   return $report
 }
 
-function Do-Analysis-MediaError-Timestamp ($LogsObj) {
+function Resolve-MediaError-Timestamp ($LogsObj) {
   $report = @()
   $groups = $LogsObj | Group-Object ID, GBZone
 
@@ -269,7 +269,7 @@ function Do-Analysis-MediaError-Timestamp ($LogsObj) {
   return $report
 }
 
-function Create-MediaErrorSect-Report($Report, $DiskMap) {
+function Save-MediaErrorSect-Report($Report, $DiskMap) {
   $groupedByID = $Report | Sort-Object DriveID, SectorDec | Group-Object DriveID
 
   $reportOutput = New-Object System.Collections.Generic.List[string]

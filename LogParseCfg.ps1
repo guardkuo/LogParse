@@ -8,3 +8,4 @@ $summaryFile = "Summary"
 $minMatchCount = 20  # 設定門檻：少於 20 行則忽略
 $DefMaxNumOfBadSector = 9 # 設定門檻：大於 9 個區域(不含)才處理
 $DefMinNumOfBadSector = 2
+$BackupLogFile = 0
