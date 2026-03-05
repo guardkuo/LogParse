@@ -26,7 +26,7 @@ function Get-Drive-Failure-Event($Disk, $ScsiId, $drvErrLog) {
         if ($null -ne $Disk) {
           $Disk.Failure = 2     # failure but not found
           $Disk.numOfBadSector = Get-MaxValue -Value1 $MaxBadSector -Value2 $BadSector
-          $Disk.FailureReason = $IOTimeout
+          $Disk.FailureReason = Get-ErrorType -DrvEvent $drvEvent
         }
         return $drvEvent
       }
@@ -245,6 +245,7 @@ $summary1List = New-Object System.Collections.Generic.List[string]
 $errorlogList = New-Object System.Collections.Generic.List[string]
 $processfileList = New-Object System.Collections.Generic.List[string]
 $unprocessfileList = New-Object System.Collections.Generic.List[string]
+$processMorefileList = New-Object System.Collections.Generic.List[string]
 $logList = New-Object System.Collections.Generic.List[string]
 $analysisResultList = New-Object System.Collections.Generic.List[string]
 $workingReport = [System.Collections.Generic.List[PSCustomObject]]::new()
@@ -439,6 +440,7 @@ Get-Content $inputFile | ForEach-Object {
       $DrvFailBeforeErr = -1
       $numOfAnalysisDrv = 0
       $lastTime = $null
+      $DoMore = 0
       $FailureDrvList = New-Object System.Collections.Generic.List[string]
       if ([int]$StorageConfig.maxTag -gt 8) {
         $MaxNumOfBadSectors = [int]$StorageConfig.maxTag + 1
@@ -486,6 +488,9 @@ Get-Content $inputFile | ForEach-Object {
                   }
                   $drvEvent = Get-Drive-Failure-Event -Disk $CurrDisk -ScsiId $ScsiId -drvErrLog $drvErrMatches
                   if ($null -ne $drvEvent) {
+                    if ($CurrDisk.Failure -eq 2 -and $CurrDisk.FailureReason -eq -2) {
+                      $DoMore = 1
+                    }
                     $numOfDrvFail++
                     $numOfDrvFailCase++
                     $numOfDrvFailButNotFound++
@@ -638,6 +643,9 @@ Get-Content $inputFile | ForEach-Object {
                     if ($numOfDrvFail -eq 0) {
                       Write-Ticket-Title -LogList $analysisResultList -Qms $officeID -SerialNumber $idPart -StorageConf $StorageConfig
                     }
+                    if ($CurrDisk.Failure -eq 2 -and $CurrDisk.FailureReason -eq -2) {
+                      $DoMore = 1
+                    }
                     $numOfDrvFail++
                     $numOfDrvFailCase++
                     $numOfDrvFailButNotFound++
@@ -732,6 +740,7 @@ Get-Content $inputFile | ForEach-Object {
                     }
                     else {
                       # Drive Channel - Chl(8) Id(122) Device is missing, Reason(8h)
+                      # Drive Channel - Chl(12) Id(23) srb(00000000h) Information Aborted I/O is submitted to the hardware
                       if ($_ -match 'Drive Channel - Chl\((?<CHL>\d+)\) Id\((?<ID>\d+)\)') {
                         $foundID = [Convert]::ToInt64($Matches['ID'])
                         if ($foundID -eq $ScsiId) {
@@ -824,6 +833,9 @@ Get-Content $inputFile | ForEach-Object {
           if ($null -ne $drvEvent) {
             if ($numOfDrvFail -eq 0) {
               Write-Ticket-Title -LogList $analysisResultList -Qms $officeID -SerialNumber $idPart -StorageConf $StorageConfig
+            }
+            if ($CurrDisk.Failure -eq 2 -and $CurrDisk.FailureReason -eq -2) {
+              $DoMore = 1
             }
             $numOfDrvFail++
             $numOfDrvFailCase++
@@ -985,6 +997,9 @@ Get-Content $inputFile | ForEach-Object {
           Backup-Log-Files -FileInfo $fileInfo -SerialNumber $idPart -BaseName $baseName -TimeStamp $timestamp -OutPutDir $OutPutDir
         }
       }
+      if ($DoMore -eq 1) {
+        $processMorefileList.Add($evtPath)
+      }
     }
     else {
       # 選項：可以顯示哪些檔案被忽略了
@@ -1066,7 +1081,8 @@ if ($analysisResultList.Count -gt 0) {
 }
 
 $unprocessfileList | Out-File -FilePath "unprocessedfile.txt" -Encoding utf8
-$processfileList | Out-File -FilePath "processedfile.txt"-Encoding utf8
+$processfileList | Out-File -FilePath "processedfile.txt" -Encoding utf8
+$processMorefileList | Out-File -FilePath "processmorefile.txt" -Encoding utf8
 
 write-host "Total case: $($numOfDrvFailCase), Failed Drive before errors: $($numOfFailDrvBeforeErr), Failed Drive after errors: $($numOfFailDrvAfterErr),  Drive Failure but not fould: $($numOfFaidDrvNotFound), Drive analysis but not Fail: $($numOfDrvNotFailed)"
 pause

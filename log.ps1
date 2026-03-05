@@ -13,7 +13,7 @@ $Readme = @(
   "0:Bad sectors的數量小於threshold, 而且HDD沒有error",
   "當Failure為1時, FailureReason可以判斷HDD error發生時間及型態",
   "FailureReason",
-  "1:Bad sectors的數量超過threshold, 但沒有任何error",
+  "1: Bad sectors的數量超過threshold, 但沒有任何error",
   "2:	第一個error是Smart Error, 而且時間早於Bad sectors的數量超過threshold",
   "3:	第一個error是Drive Fail, 而且時間早於Bad sectors的數量超過threshold",
   "4:	第一個error是LUN reset, 而且時間早於Bad sectors的數量超過threshold",

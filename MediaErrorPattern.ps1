@@ -24,14 +24,29 @@ $MEDIRERROR_DEBUG = 0
 #12084284: SMART-CH 12 ID:8 (JBODId:0 SlotNum:9) Drive Event Detected-Starting Clone
 #2208C187: CHL:12 ID:11 (JBODId:0 SlotNum:12) Drive ERROR: Scan Drive Failed
 #2208C107: CHL:9 ID:0 Drive ERROR: Scan Drive Failed
-#22084245 ERROR:SMART-CH 12 ID:74 (JBODId:1 SlotNum:15) Drive Event Detected-Clone Failed
+#22084245: ERROR:SMART-CH 12 ID:74 (JBODId:1 SlotNum:15) Drive Event Detected-Clone Failed
+#21081242: Drive ERROR: Drive HW Error (04/32/00)
+#21081282
+#21081241
+#21081281
+#22080541
+#12084243
+#22080141
+#22084285
+#12084283
 
 # 1. 設定關鍵字與檔案路徑
 # media error
 $keywords = @("02081382", "02081342", "02081341", "02081381")
+# io timeout
+$keywordIoTimeout = @("22080541", "22080581")
+# io error
+$keywordIoError = @("21080282", "22081881", "21080242", "22081882", "22081841", "22081842", "22080141", "22080181", "22080101")
+# hw error
+$keywordsHWError = @("21081242", "21081282", "21081241", "21081281")
 # drive fail, rebuild, clone, io error
-$keywordSmartError = @("22084245", "12084203", "12084244", "22084205", "12084204", "12084284")
-$keywords1 = @("21081282", "220A0188", "220A0187", "220A0185", "220A0148", "2208C187", "21080282", "2208C107") + $keywordSmartError
+$keywordSmartError = @("22084245", "12084203", "12084244", "22084205", "12084204", "12084284", "12084243", "22084285", "12084283")
+$keywords1 = @("220A0187", "220A0185", "220A0148", "2208C187", "2208C107", "220A0188") + $keywordSmartError + $keywordIoError + $keywordIoTimeout + $keywordsHWError
 
 $LDRebuildStart = @("020A8306", "020A8305", "020A8304")
 $LDRebuildCmplt = @("020A8402", "220A0302")
@@ -39,17 +54,24 @@ $LDRebuildCmplt = @("020A8402", "220A0302")
 $keywords2 = @("220A0787", "22080581", "020AA182", "320A4509", "22084202", "22080181", "220A1182", "12084243", "020AA142", "020AA281", "22080541", "22080542", "21080242", "22080141", "02081781", "22084285", "220A0749", "22081882") + $keywords + $keywords1 + $LDRebuildStart + $LDRebuildCmplt
 
 
-$DrvErrKeywords = @("22080581", "22084285", "22080541", "22080141", "21080242") + $keywords1
+$DrvErrKeywords = $keywords1
 $LDRebuild = $LDRebuildCmplt + $LDRebuildStart
 # Drive Channel - Chl(8) Id(122) Device is missing, Reason(8h)
 # Drive ChlNo:21 ID:0 High latency detected(op: 2a, last request latency:1394ms, request amount:7 
+#$debkeywords = @("latency", "M62:", "Drive Channel")
 $debkeywords = @("latency", "M62:", "Drive Channel")
-
 # 建立搜尋正則：鎖定第七欄
 $keywordPattern = ($keywords | ForEach-Object { [regex]::Escape($_) }) -join '|'
 $pattern = "^\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+($keywordPattern)"
 
 $SmartErrorPattern = ($keywordSmartError | ForEach-Object { [regex]::Escape($_) }) -join '|'
+
+$IoErrorPattern = ($keywordIoError | ForEach-Object { [regex]::Escape($_) }) -join '|'
+
+$IoTimeoutPattern = ($keywordIoTimeout | ForEach-Object { [regex]::Escape($_) }) -join '|'
+
+$HWErrorPattern = ($keywordsHWError | ForEach-Object { [regex]::Escape($_) }) -join '|'
+
 
 $keywordPattern1 = ($keywords1 | ForEach-Object { [regex]::Escape($_) }) -join '|'
 $pattern1 = "^\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+($keywordPattern1)"
@@ -309,4 +331,22 @@ function New-SectorObject ($DriveID, $GBZone, $Time) {
 function Add-SectorToList ($List, $DriveID, $GBZone, $Time) {
   $NewItem = New-SectorObject -DriveID $DriveID -GBZone $GBZone -Time $Time
   $null = $List.Add($NewItem)
+}
+
+function Get-ErrorType($DrvEvent) {
+ if ($DrvEvent.Line -match $SmartErrorPattern) {
+    return 2
+ }
+ if($DrvEvent.Line -match $IoErrorPattern) {
+    return 3
+ }
+ if($DrvEvent.Line -match $IoTimeoutPattern) {
+    return 1
+ }
+ if($DrvEvent.Line -match $HWErrorPattern) {
+    return 4
+ } 
+
+ return -2
+ 
 }
