@@ -71,7 +71,8 @@ function Write-Ticket-Summary($cvsFilePath, $QmsDB) {
   $cvsFile = $cvsFilePath + ".cvs"
   $AllDiskReport | Select-Object Model, QMS, ChassisSN, MaxRespTime, MaxTag, MaxIOTimeout, DiskID, LDID, VendorProduct, Revision, DiskSN, SizeGB, Failure, FailureReason, numOfBadSector, IgnorenumOfBadSector, LogLocation, Timestamp | 
   Export-Csv -Path $cvsFile -NoTypeInformation -Encoding UTF8
-  $excelPath = "summary.xlsx"
+  $today = Get-Date -Format "yyyyMMdd"
+  $excelPath = "summary" + $today + ".xlsx"
   $AllDiskReport | Select-Object Model, LogLocation, ChassisSN, MaxRespTime, MaxTag, MaxIOTimeout, DiskID, LDID, VendorProduct, Revision, DiskSN, SizeGB, Failure, FailureReason, numOfBadSector, IgnorenumOfBadSector, Timestamp | 
   Export-Excel -Path $excelPath -WorksheetName $cvsFilePath -AutoSize -BoldTopRow -FreezeTopRow
 }

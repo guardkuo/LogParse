@@ -18,10 +18,10 @@ function Get-MaxValue([int32]$Value1, [int32]$Value2) {
     return $Value2
   }
 }
-
 function Get-Drive-Failure-Event($Disk, $ScsiId, $drvErrLog) {
   foreach ($drvEvent in $drvErrLog) {
-    if ($drvEvent.Line -match 'CH(?:L)?[:\s]+(?<Channel>\d+)\s+ID:(?<ID>\d+)') {
+    if ($drvEvent.Line -match 'CH(?:L)?[:\s]+(?<Channel>\d+)\s+ID:(?<ID>\d+)' -or
+      $drvEvent.Line -match 'SMART-CH?[\s]+(?<Channel>\d+)\s+ID:(?<ID>\d+)') {
       $foundID = [int64]$Matches['ID']
       if ($foundID -eq $ScsiId) {
         if ($null -ne $Disk) {
@@ -190,6 +190,19 @@ function Test-DateTime-Before ([DateTime]$Time1, [DateTime]$Time2) {
   }
 }
 
+function Set-DriveScan-Time($DriveScanList, $ScsiID, [DateTime]$Time) {
+  foreach ($Drv in $DriveScanList) {
+    if ($Drv.ID -eq $ScsiID) {
+      $Drv.ScanTime = $Time
+      return $null
+    }
+  }
+  return $Drv = [PSCustomObject]@{
+    ID       = $ScsiID
+    ScanTime = $Time
+  }
+}
+
 function Set-LDRebuild-Time($RebuildList, $LD, $Starting, [DateTime]$Time) {
   foreach ($rebuild in $RebuildList) {
     if ($rebuild.LDID -eq $LD) {
@@ -239,7 +252,37 @@ function Add-FailureDrv($DrvList, $ResultList, $Vendor) {
   if ($Vendor) {
     $ResultList.Add("    $($Vendor)");
     $DrvList += $Vendor
- }
+  }
+}
+
+function Get-DrvFailure-Reason($FailureEvent, $ScsiId) {
+  $reason = -1
+  if ($FailureEvent -match 'M62: Chl (?<CHL>\d+) Id (?<ID>[0-9a-fA-F]+)') {    
+    $foundID = [Convert]::ToInt64($Matches['ID'], 16)
+    if ($foundID -eq $ScsiId) {
+      $reason = 1
+    }
+  }
+  else {
+    #Drive ChlNo:8 ID:276 High latency detected(op: 0, last request latency:767ms, request amount:65535 
+    if ($_ -match 'Drive ChlNo:(?<CHL>\d+) ID:(?<ID>\d+)') {
+      $foundID = [Convert]::ToInt64($Matches['ID'])
+      if ($foundID -eq $ScsiId) {
+        $reason = 2
+      }
+    }
+    else {
+      # Drive Channel - Chl(8) Id(122) Device is missing, Reason(8h)
+      # Drive Channel - Chl(12) Id(23) srb(00000000h) Information Aborted I/O is submitted to the hardware
+      if ($_ -match 'Drive Channel - Chl\((?<CHL>\d+)\) Id\((?<ID>\d+)\)') {
+        $foundID = [Convert]::ToInt64($Matches['ID'])
+        if ($foundID -eq $ScsiId) {
+          $reason = 3
+        }
+      }
+    }
+  }
+  return $reason
 }
 
 if (Test-Path ".\log.ps1") {
@@ -343,7 +386,23 @@ Get-Content $inputFile | ForEach-Object {
           $DiskMap[$item.ID.ToString()] = "SCSI ID:$($item.ID) $($item.VendorProduct) REV:$($item.Revision) (SN:$($item.SerialNumber)) (Capacity:$($item.SizeGB) GB)"
         }
       }
-
+      # Build Drive Scan table
+      $drvScanMatches = Select-String -Path $evtPath -Pattern $DrvScanPattern -ErrorAction SilentlyContinue
+      $drvScanSeq = [System.Collections.Generic.List[string]]::new()
+      $drvScanMatches | ForEach-Object {
+        if ($_.Line -match '(?<DateTime>\d{2}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})') {
+          # 轉成 DateTime 物件進行精確的時間數值排序
+          $foundTime = [DateTime]::ParseExact($Matches['DateTime'], "yy-MM-dd HH:mm:ss", $null)
+          
+          if ($_.Line -match 'ID:(?<ID>\d+)') {
+            $ScsiID = $Matches['ID']
+            $Drv = Set-DriveScan-Time -DriveScanList $drvScanSeq -ScsiID $ScsiID -Time $foundTime
+            if ($null -ne $Drv) {
+              $drvScanSeq += $Drv
+            }
+          }
+        }
+      }
       if ($DEBUG -eq 1 ) {
         # --- 輸出結果展示 ---
         Write-Host "已建立排序後的磁碟對照表 (共 $($StorageConfig.DiskList.Count) 筆):" -ForegroundColor Cyan
@@ -362,7 +421,7 @@ Get-Content $inputFile | ForEach-Object {
 
       $finalReport = Split-MediaError-Group -LogsObj $parsedLogsObj
 
-      $analysisReport = Resolve-MediaError-Timestamp -LogsObj $parsedLogsObj
+      $analysisReport = Resolve-MediaError-Timestamp -LogsObj $parsedLogsObj -DriveScanList $drvScanSeq
 
       # 最終排序：先按 ID 排，再按 Sector 數值排
       $sortedFinalReport = $finalReport | Sort-Object DriveID, SectorDec
@@ -473,6 +532,7 @@ Get-Content $inputFile | ForEach-Object {
       $numOfDrvFailBeforeErrInThisQMS = 0
       $numOfDrvFailAfterErrInThisQMS = 0
       $DrvFailBeforeTmout = -1
+      $DrvFailAfterTmoutReason = -1
       $DrvFailBeforeErr = -1
       $numOfAnalysisDrv = 0
       $lastTime = $null
@@ -728,38 +788,15 @@ Get-Content $inputFile | ForEach-Object {
               $FailAlogDetected = 0
               $LimitTimeoutAlogDetect = 0
               $DrvFailBeforeTmout = -1
+              $DrvFailAfterTmoutReason = -1
               $DrvFailBeforeErr = -1
               $EventTime = $_.StartTime
               $reason = 0
               $debList | ForEach-Object {
                 if ($DrvFailBeforeTmout -le 0) {
-                  $foundID = -1
-                  if ($_ -match 'M62: Chl (?<CHL>\d+) Id (?<ID>[0-9a-fA-F]+)') {    
-                    $foundID = [Convert]::ToInt64($Matches['ID'], 16)
-                    if ($foundID -eq $ScsiId) {
-                      $reason = 1
-                    }
-                  }
-                  else {
-                    #Drive ChlNo:8 ID:276 High latency detected(op: 0, last request latency:767ms, request amount:65535 
-                    if ($_ -match 'Drive ChlNo:(?<CHL>\d+) ID:(?<ID>\d+)') {
-                      $foundID = [Convert]::ToInt64($Matches['ID'])
-                      if ($foundID -eq $ScsiId) {
-                        $reason = 2
-                      }
-                    }
-                    else {
-                      # Drive Channel - Chl(8) Id(122) Device is missing, Reason(8h)
-                      # Drive Channel - Chl(12) Id(23) srb(00000000h) Information Aborted I/O is submitted to the hardware
-                      if ($_ -match 'Drive Channel - Chl\((?<CHL>\d+)\) Id\((?<ID>\d+)\)') {
-                        $foundID = [Convert]::ToInt64($Matches['ID'])
-                        if ($foundID -eq $ScsiId) {
-                          $reason = 3
-                        }
-                      }
-                    }
-                  }
-                  if ($foundID -eq $ScsiId) {
+                  $reason = Get-DrvFailure-Reason -FailureEvent $_ -ScsiId $ScsiId
+
+                  if ($reason -ge 0) {
                     if ($FailAlogDetected -eq 0 -and $_ -match '(?<DateTime>\d{2}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})') {
                       # 轉成 DateTime 物件進行精確的時間數值排序
                       $foundTime = [DateTime]::ParseExact($Matches['DateTime'], "yy-MM-dd HH:mm:ss", $null)
@@ -775,6 +812,10 @@ Get-Content $inputFile | ForEach-Object {
                         }
                         else {
                           $DrvFailBeforeTmout = 0
+                          if ($DrvFailAfterTmoutReason -lt 0) {
+                            $DrvFailAfterTmoutReason = $reason
+                            $DrvFailAfterTmoutTime = $foundTime
+                          }
                           $analysisResultList.Add($_)
                           $logList.Add($_)
                         }
@@ -788,7 +829,7 @@ Get-Content $inputFile | ForEach-Object {
               #12084283 WARN:SMART-CH 12 ID:24 (JBODId:0 SlotNum:7) Drive Event Detected 
               $drvErrMatches | ForEach-Object {
                 if ($_.Line -match 'CH(?:L)?[:\s]+(?<Channel>\d+)\s+ID:(?<ID>\d+)' -or
-                    $_.Line -match 'SMART-CH?[\s]+(?<Channel>\d+)\s+ID:(?<ID>\d+)') {
+                  $_.Line -match 'SMART-CH?[\s]+(?<Channel>\d+)\s+ID:(?<ID>\d+)') {
                   #Write-Host("$($_.Line)")
                   $foundID = [int64]$Matches['ID']
                   if ($foundID -eq $ScsiId) {
@@ -806,7 +847,7 @@ Get-Content $inputFile | ForEach-Object {
                         }
                         else {
                           if ($_.Line -match $SmartErrorPattern) {
-                            if($CurrDisk.FailureReason -le 0) {
+                            if ($CurrDisk.FailureReason -le 0) {
                               $CurrDisk.FailureReason = $SmartDetect
                             }
                           }
@@ -899,7 +940,7 @@ Get-Content $inputFile | ForEach-Object {
       else {
         if ( $numOfAnalysisDrv -gt 0) {
           $dup = Search-TicketMap($AnalysisQMSTicketDB, $Ticket)
-          if( $dup -ge 0) {
+          if ( $dup -ge 0) {
             $AnalysisQMSTicketDB += $thisTicket
           }
         }

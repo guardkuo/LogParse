@@ -35,13 +35,17 @@ $MEDIRERROR_DEBUG = 0
 #22084285
 #12084283
 #22080181
+#0208C181: CHL:12 ID:12 (JBODId:0 SlotNum:13) Drive INFORM: Scan Drive Successful
+#0208C141:
 # 1. 設定關鍵字與檔案路徑
+# drive scan
+$keyworkDrvScan = @("0208C181", "0208C141")
 # media error
 $keywords = @("02081382", "02081342", "02081341", "02081381")
 # io timeout
-$keywordIoTimeout = @("22080541", "22080581", "22080181", "22080141")
+$keywordIoTimeout = @("22080541", "22080581", "22080181")
 # io error
-$keywordIoError = @("21080282", "22081881", "21080242", "22081882", "22081841", "22081842", "22080101")
+$keywordIoError = @("21080282", "22081881", "21080242", "22081882", "22081841", "22081842", "22080101", "22080141")
 # hw error
 $keywordsHWError = @("21081242", "21081282", "21081241", "21081281")
 # drive fail, rebuild, clone, io error
@@ -73,6 +77,10 @@ $IoTimeoutPattern = ($keywordIoTimeout | ForEach-Object { [regex]::Escape($_) })
 
 $HWErrorPattern = ($keywordsHWError | ForEach-Object { [regex]::Escape($_) }) -join '|'
 
+$keywordDrvScanPattern = ($keyworkDrvScan | ForEach-Object { [regex]::Escape($_) }) -join '|'
+$DrvScanPattern = "^\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+($keywordDrvScanPattern)"
+$DrvScanMatch = "(" + ($keyworkDrvScan -join '|') + ")"
+$DrvScanMatchPattern = "$DrvScanMatch.* ID:(?<ScsiID>[0-9A-Fa-f]+)"
 
 $keywordPattern1 = ($keywords1 | ForEach-Object { [regex]::Escape($_) }) -join '|'
 $pattern1 = "^\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+($keywordPattern1)"
@@ -87,7 +95,6 @@ $keywordRebuildPattern = ($LDRebuild | ForEach-Object { [regex]::Escape($_) }) -
 $RebuildPattern = "^\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+($keywordRebuildPattern)"
 
 $debkeywordPattern = ($debkeywords | ForEach-Object { [regex]::Escape($_) }) -join '|'
-#$debkeywordPattern = "(" + ($debkeywords -join '|') + ")"
 
 $rebuildStartPattern = "(" + ($LDRebuildStart -join '|') + ")"
 $keywordRebuildStartPattern = "$rebuildStartPattern.* ID:(?<LD>[0-9A-Fa-f]+)"
@@ -98,7 +105,7 @@ $keywordRebuildCmpltPattern = "$rebuildCmptPattern.* ID:(?<LD>[0-9A-Fa-f]+)"
 $SectorsPerGB = 2097152
 $WeekThresholdDays = 7
 $minThreshhold = 10
-
+$IgnoreErrorBeforeScan = 0
 # 建立統計物件的函式
 function MediaErrorBadSector ($Entries) {
   $minSector = ($Entries | Sort-Object SectorDec)[0].SectorDec
@@ -244,34 +251,50 @@ function Split-MediaError-Group ($LogsObj) {
   return $report
 }
 
-function Resolve-MediaError-Timestamp ($LogsObj) {
+function Get-Drive-ScanTime($DriveList, $ScsiID) {
+  foreach ($drv in $DriveList) {
+    if ($drv.ID -eq $ScsiID) {
+      return $drv.ScanTime
+    }
+  }
+  return $null
+}
+function Resolve-MediaError-Timestamp ($LogsObj, $DriveScanList) {
   $report = @()
   $groups = $LogsObj | Group-Object ID, GBZone
 
   foreach ($g in $groups) {
     # 區域內按 Sector 排序，確保分析連續性
     $sortedEntries = $g.Group | Sort-Object Time, StartGB
-   
     $currentEventEntries = @()
     $lastTime = $null
     $duplicated = 0
+    $foundId = -1
     foreach ($entry in $sortedEntries) {
-      # 時間間隔判定：超過10 min 則分割
-      if ($null -ne $lastTime -and [Math]::Abs(($entry.Time - $lastTime).TotalMinutes) -gt $minThreshhold) {
-        if ($duplicated -eq 0) {
-          $report += MediaErrorBadSector -Entries $currentEventEntries
+      if ( $IgnoreErrorBeforeScan -eq 1 ) {
+        if ( $foundId -ne $entry.ID ) {
+          $scanTime = Get-Drive-ScanTime -DriveList $DriveScanList -ScsiID $entry.ID
+          $foundId = $entry.ID
         }
-        else {
-          $duplicated = 0
-        }
-
-        $currentEventEntries = @()
-        $lastTime = $entry.Time
       }
-      $currentEventEntries += $entry
+      if ($null -eq $scanTime -or [Math]::Abs(($entry.Time - $scanTime).TotalMinutes) -lt 0) {
+        # 時間間隔判定：超過10 min 則分割
+        if ($null -ne $lastTime -and [Math]::Abs(($entry.Time - $lastTime).TotalMinutes) -gt $minThreshhold) {
+          if ($duplicated -eq 0) {
+            $report += MediaErrorBadSector -Entries $currentEventEntries
+          }
+          else {
+            $duplicated = 0
+          }
 
-      if ($null -eq $lastTime) {
-        $lastTime = $entry.Time
+          $currentEventEntries = @()
+          $lastTime = $entry.Time
+        }
+        $currentEventEntries += $entry
+
+        if ($null -eq $lastTime) {
+          $lastTime = $entry.Time
+        }
       }
     }
     
@@ -335,19 +358,19 @@ function Add-SectorToList ($List, $DriveID, $GBZone, $Time) {
 }
 
 function Get-ErrorType($DrvEvent) {
- if ($DrvEvent.Line -match $SmartErrorPattern) {
+  if ($DrvEvent.Line -match $SmartErrorPattern) {
     return 2
- }
- if($DrvEvent.Line -match $IoErrorPattern) {
+  }
+  if ($DrvEvent.Line -match $IoErrorPattern) {
     return 3
- }
- if($DrvEvent.Line -match $IoTimeoutPattern) {
+  }
+  if ($DrvEvent.Line -match $IoTimeoutPattern) {
     return 1
- }
- if($DrvEvent.Line -match $HWErrorPattern) {
+  }
+  if ($DrvEvent.Line -match $HWErrorPattern) {
     return 4
- } 
+  } 
 
- return -2
+  return -2
  
 }
