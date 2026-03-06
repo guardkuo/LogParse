@@ -940,7 +940,7 @@ Get-Content $inputFile | ForEach-Object {
       else {
         if ( $numOfAnalysisDrv -gt 0) {
           $dup = Search-TicketMap($AnalysisQMSTicketDB, $Ticket)
-          if ( $dup -ge 0) {
+          if ( $dup -le 0) {
             $AnalysisQMSTicketDB += $thisTicket
           }
         }

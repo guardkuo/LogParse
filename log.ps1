@@ -30,7 +30,9 @@ $Readme = @(
 )
 
 function Write-Ticket-Summary-Readme() {
-  $Readme | Export-Excel -Path "summary.xlsx" -WorksheetName "Readme" -AutoSize -BoldTopRow -FreezeTopRow   
+  $today = Get-Date -Format "yyyyMMdd"
+  $excelPath = "summary" + $today + ".xlsx"
+  $Readme | Export-Excel -Path $excelPath -WorksheetName "Readme" -AutoSize -BoldTopRow -FreezeTopRow   
 }
 function Write-Ticket-Summary($cvsFilePath, $QmsDB) {
   $AllDiskReport = New-Object System.Collections.Generic.List[string]
