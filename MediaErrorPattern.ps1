@@ -34,14 +34,14 @@ $MEDIRERROR_DEBUG = 0
 #22080141
 #22084285
 #12084283
-
+#22080181
 # 1. 設定關鍵字與檔案路徑
 # media error
 $keywords = @("02081382", "02081342", "02081341", "02081381")
 # io timeout
-$keywordIoTimeout = @("22080541", "22080581")
+$keywordIoTimeout = @("22080541", "22080581", "22080181", "22080141")
 # io error
-$keywordIoError = @("21080282", "22081881", "21080242", "22081882", "22081841", "22081842", "22080141", "22080181", "22080101")
+$keywordIoError = @("21080282", "22081881", "21080242", "22081882", "22081841", "22081842", "22080101")
 # hw error
 $keywordsHWError = @("21081242", "21081282", "21081241", "21081281")
 # drive fail, rebuild, clone, io error
@@ -54,12 +54,13 @@ $LDRebuildCmplt = @("020A8402", "220A0302")
 $keywords2 = @("220A0787", "22080581", "020AA182", "320A4509", "22084202", "22080181", "220A1182", "12084243", "020AA142", "020AA281", "22080541", "22080542", "21080242", "22080141", "02081781", "22084285", "220A0749", "22081882") + $keywords + $keywords1 + $LDRebuildStart + $LDRebuildCmplt
 
 
-$DrvErrKeywords = $keywords1
 $LDRebuild = $LDRebuildCmplt + $LDRebuildStart
 # Drive Channel - Chl(8) Id(122) Device is missing, Reason(8h)
 # Drive ChlNo:21 ID:0 High latency detected(op: 2a, last request latency:1394ms, request amount:7 
 #$debkeywords = @("latency", "M62:", "Drive Channel")
 $debkeywords = @("latency", "M62:", "Drive Channel")
+$DrvErrKeywords = $keywords1
+
 # 建立搜尋正則：鎖定第七欄
 $keywordPattern = ($keywords | ForEach-Object { [regex]::Escape($_) }) -join '|'
 $pattern = "^\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+($keywordPattern)"

@@ -19,7 +19,15 @@ $Readme = @(
   "4:	第一個error是LUN reset, 而且時間早於Bad sectors的數量超過threshold",
   "5:	第一個error是IO high latency, 而且時間早於Bad sectors的數量超過threshold",
   "6:	第一個error是Target reset, 而且時間早於Bad sectors的數量超過threshold",
-  "-1:	第一個error是Smart Error, 而且時間早於Bad sectors的數量超過threshold")
+  "-1:	第一個error是Smart Error, 而且時間早於Bad sectors的數量超過threshold",
+  "當Failure為2時, FailureReason可以判斷HDD error發生的型態",
+  "FailureReason",
+  "1: IO timeout",
+  "2:	SMART Error",
+  "3:	IO Error",
+  "4:	HW error",
+  "-2: Others, need more analysis"
+)
 
 function Write-Ticket-Summary-Readme() {
   $Readme | Export-Excel -Path "summary.xlsx" -WorksheetName "Readme" -AutoSize -BoldTopRow -FreezeTopRow   
@@ -28,40 +36,43 @@ function Write-Ticket-Summary($cvsFilePath, $QmsDB) {
   $AllDiskReport = New-Object System.Collections.Generic.List[string]
   # 透過 Select-Object 的自定義屬性，將外層資訊與內層 DiskList 合併
   foreach ($ticket in $QmsDB) {
-    foreach ($disk in $ticket.DiskList) {
-      $Path = $ticket.LogLocation
-      $PathTag = $ticket.QMS
-      $ExcelLink = "=HYPERLINK(""$Path"",""$PathTag"")"
-      $AllDiskReport += [PSCustomObject]@{
-        Model                = $ticket.ModelName
-        QMS                  = $ticket.QMS
-        LogLocation          = $ExcelLink
-        ChassisSN            = $ticket.SN  # 區分機箱 SN 與硬碟 SN
-        MaxRespTime          = $ticket.MaxRespTime
-        MaxTag               = $ticket.MaxTag
-        MaxIOTimeout         = $ticket.MaxIOTimeout
-        Timestamp            = $ticket.ReportTime
-        # ... 其他總體資訊 ...
+    $dup = Search-TicketMap -TicketMap $QmsDB -Ticket $ticket
+    if ($dup -le 0) {
+      foreach ($disk in $ticket.DiskList) {
+        $Path = $ticket.LogLocation
+        $PathTag = $ticket.QMS
+        $ExcelLink = "=HYPERLINK(""$Path"",""$PathTag"")"
+        $AllDiskReport += [PSCustomObject]@{
+          Model                = $ticket.ModelName
+          QMS                  = $ticket.QMS
+          LogLocation          = $ExcelLink
+          ChassisSN            = $ticket.SN  # 區分機箱 SN 與硬碟 SN
+          MaxRespTime          = $ticket.MaxRespTime
+          MaxTag               = $ticket.MaxTag
+          MaxIOTimeout         = $ticket.MaxIOTimeout
+          Timestamp            = $ticket.ReportTime
+          # ... 其他總體資訊 ...
 
-        # Disk 詳細資訊
-        DiskID               = $disk.ID
-        LDID                 = $disk.LDID
-        VendorProduct        = $disk.VendorProduct
-        Revision             = $disk.SerialNumber
-        DiskSN               = $disk.SerialNumber
-        SizeGB               = $disk.SizeGB
-        Failure              = $disk.Failure
-        FailureReason        = $disk.FailureReason
-        numOfBadSector       = $disk.numOfBadSector
-        IgnorenumOfBadSector = $disk.IgnorenumOfBadSector
+          # Disk 詳細資訊
+          DiskID               = $disk.ID
+          LDID                 = $disk.LDID
+          VendorProduct        = $disk.VendorProduct
+          Revision             = $disk.Revision
+          DiskSN               = $disk.SerialNumber
+          SizeGB               = $disk.SizeGB
+          Failure              = $disk.Failure
+          FailureReason        = $disk.FailureReason
+          numOfBadSector       = $disk.numOfBadSector
+          IgnorenumOfBadSector = $disk.IgnorenumOfBadSector
+        }
       }
     }
   }
   $cvsFile = $cvsFilePath + ".cvs"
-  $AllDiskReport | Select-Object Model, QMS, ChassisSN, MaxRespTime, MaxTag, MaxIOTimeout, DiskID, LDID, VendorProduct, SizeGB, Failure, FailureReason, numOfBadSector, IgnorenumOfBadSector, LogLocation, Timestamp | 
+  $AllDiskReport | Select-Object Model, QMS, ChassisSN, MaxRespTime, MaxTag, MaxIOTimeout, DiskID, LDID, VendorProduct, Revision, DiskSN, SizeGB, Failure, FailureReason, numOfBadSector, IgnorenumOfBadSector, LogLocation, Timestamp | 
   Export-Csv -Path $cvsFile -NoTypeInformation -Encoding UTF8
   $excelPath = "summary.xlsx"
-  $AllDiskReport | Select-Object Model, LogLocation, ChassisSN, MaxRespTime, MaxTag, MaxIOTimeout, DiskID, LDID, VendorProduct, SizeGB, Failure, FailureReason, numOfBadSector, IgnorenumOfBadSector, Timestamp | 
+  $AllDiskReport | Select-Object Model, LogLocation, ChassisSN, MaxRespTime, MaxTag, MaxIOTimeout, DiskID, LDID, VendorProduct, Revision, DiskSN, SizeGB, Failure, FailureReason, numOfBadSector, IgnorenumOfBadSector, Timestamp | 
   Export-Excel -Path $excelPath -WorksheetName $cvsFilePath -AutoSize -BoldTopRow -FreezeTopRow
 }
 
