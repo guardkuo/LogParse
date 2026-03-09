@@ -351,6 +351,7 @@ Get-Content $inputFile | ForEach-Object {
     
         
     if ($matchCount -ge $minMatchCount) {
+      $qmsIssueTime = $fileInfo.CreationTime
       $timestamp = $fileInfo.CreationTime.ToString("yyyyMMdd_HHmmss")
       # 建立 Disk Map, 備份 txt config file. 含硬碟資訊
       $conf = "_Conf"
@@ -421,7 +422,7 @@ Get-Content $inputFile | ForEach-Object {
 
       $finalReport = Split-MediaError-Group -LogsObj $parsedLogsObj
 
-      $analysisReport = Resolve-MediaError-Timestamp -LogsObj $parsedLogsObj -DriveScanList $drvScanSeq
+      $analysisReport = Resolve-MediaError-Timestamp -LogsObj $parsedLogsObj -DriveScanList $drvScanSeq -IssueTime $qmsIssueTime
 
       # 最終排序：先按 ID 排，再按 Sector 數值排
       $sortedFinalReport = $finalReport | Sort-Object DriveID, SectorDec
@@ -478,7 +479,7 @@ Get-Content $inputFile | ForEach-Object {
         }
       }
 
-      $MediaErrorSectReportOutput = Save-MediaErrorSect-Report -Report $finalReport -DiskMap $DiskMap
+      $MediaErrorSectReportOutput = Save-MediaErrorSect-Report -Report $finalReport -DiskMap $DiskMap -IssueTime $qmsIssueTime
       # --- 處理個別錯誤檔案 (完整結果) ---
       $debFileName = "$idPart.deb.0.5.full.txt"
       $debPath = Join-Path $fileInfo.DirectoryName $debFileName
@@ -939,10 +940,8 @@ Get-Content $inputFile | ForEach-Object {
       }
       else {
         if ( $numOfAnalysisDrv -gt 0) {
-          $dup = Search-TicketMap($AnalysisQMSTicketDB, $Ticket)
-          if ( $dup -le 0) {
             $AnalysisQMSTicketDB += $thisTicket
-          }
+
         }
       }
 

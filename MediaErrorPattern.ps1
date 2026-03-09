@@ -106,6 +106,7 @@ $SectorsPerGB = 2097152
 $WeekThresholdDays = 7
 $minThreshhold = 10
 $IgnoreErrorBeforeScan = 0
+$minAnalysisDaysBeforeIssued = 180
 # 建立統計物件的函式
 function MediaErrorBadSector ($Entries) {
   $minSector = ($Entries | Sort-Object SectorDec)[0].SectorDec
@@ -259,7 +260,7 @@ function Get-Drive-ScanTime($DriveList, $ScsiID) {
   }
   return $null
 }
-function Resolve-MediaError-Timestamp ($LogsObj, $DriveScanList) {
+function Resolve-MediaError-Timestamp ($LogsObj, $DriveScanList, $IssueTime) {
   $report = @()
   $groups = $LogsObj | Group-Object ID, GBZone
 
@@ -277,7 +278,7 @@ function Resolve-MediaError-Timestamp ($LogsObj, $DriveScanList) {
           $foundId = $entry.ID
         }
       }
-      if ($null -eq $scanTime -or [Math]::Abs(($entry.Time - $scanTime).TotalMinutes) -lt 0) {
+      if (($null -eq $scanTime -or [Math]::Abs(($entry.Time - $scanTime).TotalMinutes) -lt 0) -and ($IssueTime - $entry.Time).TotalDays -le $minAnalysisDaysBeforeIssued) {
         # 時間間隔判定：超過10 min 則分割
         if ($null -ne $lastTime -and [Math]::Abs(($entry.Time - $lastTime).TotalMinutes) -gt $minThreshhold) {
           if ($duplicated -eq 0) {
@@ -315,12 +316,13 @@ function Resolve-MediaError-Timestamp ($LogsObj, $DriveScanList) {
   return $report
 }
 
-function Save-MediaErrorSect-Report($Report, $DiskMap) {
+function Save-MediaErrorSect-Report($Report, $DiskMap, $IssueTime) {
   $groupedByID = $Report | Sort-Object DriveID, SectorDec | Group-Object DriveID
 
   $reportOutput = New-Object System.Collections.Generic.List[string]
   $reportOutput.Add("=== Disk Media Error Analysis Report (Grouped by ID) ===")
   $reportOutput.Add("Generated on: $(Get-Date)")
+  $reportOutput.Add("Issued on: $IssueTime")
   $reportOutput.Add("")
 
   foreach ($driveGroup in $groupedByID) {
