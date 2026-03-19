@@ -37,6 +37,9 @@ $MEDIRERROR_DEBUG = 0
 #22080181
 #0208C181: CHL:12 ID:12 (JBODId:0 SlotNum:13) Drive INFORM: Scan Drive Successful
 #0208C141:
+#22081582 CHL:12 ID:12 (JBODId:0 SlotNum:13)  Drive ERROR: Unexpected Sense Received (07/27/00)
+#22081682 CHL:8 ID:13 (JBODId:0 SlotNum:14)  Drive ERROR: Block Reassignment Failed - 0x1176BC737 (03/0C/03)
+#22081642 CHL:12 ID:71 (JBODId:1 SlotNum:12)  Drive ERROR: Block Reassignment Failed - 0xB21A5B80 (03/0C/03)
 # 1. 設定關鍵字與檔案路徑
 # drive scan
 $keyworkDrvScan = @("0208C181", "0208C141")
@@ -45,7 +48,7 @@ $keywords = @("02081382", "02081342", "02081341", "02081381")
 # io timeout
 $keywordIoTimeout = @("22080541", "22080581", "22080181")
 # io error
-$keywordIoError = @("21080282", "22081881", "21080242", "22081882", "22081841", "22081842", "22080101", "22080141")
+$keywordIoError = @("21080282", "22081881", "21080242", "22081882", "22081841", "22081842", "22080101", "22080141", "22081582", "22081682", "22081642")
 # hw error
 $keywordsHWError = @("21081242", "21081282", "21081241", "21081281")
 # drive fail, rebuild, clone, io error
