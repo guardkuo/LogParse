@@ -1,11 +1,23 @@
-$inputFile = "Search_Report.txt"
-$resultFile = "Match_Result.txt"
-$resultFile1 = "All_Match_Result.txt"
-$errrologFile = "error.log"
-$logFile = "LogParse.log"
-$analysisFile = "AnalysisReport"
-$summaryFile = "Summary"
-$minMatchCount = 20  # 設定門檻：少於 20 行則忽略
-$DefMaxNumOfBadSector = 9 # 設定門檻：大於 9 個區域(不含)才處理
-$DefMinNumOfBadSector = 2
-$BackupLogFile = 0
+$Script:inputFile = "Search_Report.txt"
+$Script:resultFile = "Match_Result.txt"
+$Script:resultFile1 = "All_Match_Result.txt"
+$Script:errorlogFile = "error.log"
+$Script:logFile = "LogParse.log"
+$Script:analysisFile = "AnalysisReport"
+$Script:summaryFile = "Summary"
+$Script:minMatchCount = 20
+$Script:DefMaxNumOfBadSector = 9
+$Script:DefMinNumOfBadSector = 2
+$Script:BackupLogFile = 0
+
+$Script:FileExtensions = @{
+    Deb = ".deb.0.5.full.txt"
+    Evt = ".evt.0.5.full.txt"
+    EvtDeb = ".evt+deb.0.5.full.txt"
+    ConfTxt = "_Conf.txt"
+    ConfXml = "_Conf.xml"
+}
+
+if (-not (Test-Path $inputFile)) {
+    Write-Warning "Input file '$inputFile' not found. Specify via command line parameter."
+}
