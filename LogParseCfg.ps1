@@ -7,5 +7,5 @@ $analysisFile = "AnalysisReport"
 $summaryFile = "Summary"
 $minMatchCount = 20  # 設定門檻：少於 20 行則忽略
 $DefMaxNumOfBadSector = 9 # 設定門檻：大於 9 個區域(不含)才處理
-$DefMinNumOfBadSector = 2
-$BackupLogFile = 0
+$DefMinNumOfBadSector = 2 # 設定門檻：當BadSector少於$DefMaxNumOfBadSector, 大於 2 個區域(不含)才加入report
+$BackupLogFile = 0 # 是否要備份Log

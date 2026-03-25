@@ -106,9 +106,13 @@ $keywordRebuildCmpltPattern = "$rebuildCmptPattern.* ID:(?<LD>[0-9A-Fa-f]+)"
 
 # 定義 1GB 所佔用的 Sector 數量 (以 512-byte sector 為例)
 $SectorsPerGB = 2097152
+# 定義每個Bad Sector過期的時間
 $WeekThresholdDays = 7
+# 定義多少時間內發生的Bad Sector可視作同一群
 $minThreshhold = 10
+# 是否忽略Drive Scan之前的Error event
 $IgnoreErrorBeforeScan = 0
+# 忽略Log產生之前多久的event
 $minAnalysisDaysBeforeIssued = 180
 # 建立統計物件的函式
 function MediaErrorBadSector ($Entries) {
@@ -218,30 +222,30 @@ function Build-ParseLog ($MediaErrorData) {
 }
 
 function Split-MediaError-Group ($LogsObj) {
-  $report = @()
+  $Report = New-Object System.Collections.Generic.List[PSCustomObject]
+  $CurrentEventEntries = New-Object System.Collections.Generic.List[PSCustomObject]
   $groups = $LogsObj | Group-Object ID, GBZone
 
   foreach ($g in $groups) {
     # 區域內按 Sector 排序，確保分析連續性
     $sortedEntries = $g.Group | Sort-Object StartGB, Time
-    
-    $currentEventEntries = @()
+    $CurrentEventEntries.Clear()
     $lastTime = $null
     foreach ($entry in $sortedEntries) {
       # 時間間隔判定：超過10 min 則分割
       if ($null -ne $lastTime -and [Math]::Abs(($entry.Time - $lastTime).TotalMinutes) -gt $minThreshhold) {
-        $report += MediaErrorBadSector -Entries $currentEventEntries
-        $currentEventEntries = @()
+        $Report += MediaErrorBadSector -Entries $CurrentEventEntries
+        $CurrentEventEntries.Clear()
         $lastTime = $entry.Time
       }
-      $currentEventEntries += $entry
+      $CurrentEventEntries.Add($entry)
       if ($null -eq $lastTime) {
         $lastTime = $entry.Time
       }
     }
     
-    if ($currentEventEntries.Count -gt 0) {
-      $report += MediaErrorBadSector -Entries $currentEventEntries
+    if ($CurrentEventEntries.Count -gt 0) {
+      $Report += MediaErrorBadSector -Entries $CurrentEventEntries
     }
   }
 
@@ -249,10 +253,10 @@ function Split-MediaError-Group ($LogsObj) {
   if ($MEDIRERROR_DEBUG -eq 1 ) {
     Write-Host "`n[統計摘要]" -ForegroundColor Cyan
     Write-Host "總受損 GB 區域數: " ($groups.Count)
-    Write-Host "總事件處理數 (跨週分割): " ($report.Count) -ForegroundColor Yellow
-    $report | Sort-Object DriveID, SectorDec | Select-Object DriveID, StartSector, GB_Zone, ErrorCount, StartTime, EndTime, Duration | Format-Table -AutoSize
+    Write-Host "總事件處理數 (跨週分割): " ($Report.Count) -ForegroundColor Yellow
+    $Report | Sort-Object DriveID, SectorDec | Select-Object DriveID, StartSector, GB_Zone, ErrorCount, StartTime, EndTime, Duration | Format-Table -AutoSize
   }     
-  return $report
+  return $Report
 }
 
 function Get-Drive-ScanTime($DriveList, $ScsiID) {
@@ -264,13 +268,14 @@ function Get-Drive-ScanTime($DriveList, $ScsiID) {
   return $null
 }
 function Resolve-MediaError-Timestamp ($LogsObj, $DriveScanList, $IssueTime) {
-  $report = @()
+  $Report = New-Object System.Collections.Generic.List[PSCustomObject]
+  $CurrentEventEntries = New-Object System.Collections.Generic.List[PSCustomObject]
   $groups = $LogsObj | Group-Object ID, GBZone
 
   foreach ($g in $groups) {
     # 區域內按 Sector 排序，確保分析連續性
     $sortedEntries = $g.Group | Sort-Object Time, StartGB
-    $currentEventEntries = @()
+    $CurrentEventEntries.Clear()
     $lastTime = $null
     $duplicated = 0
     $foundId = -1
@@ -285,16 +290,16 @@ function Resolve-MediaError-Timestamp ($LogsObj, $DriveScanList, $IssueTime) {
         # 時間間隔判定：超過10 min 則分割
         if ($null -ne $lastTime -and [Math]::Abs(($entry.Time - $lastTime).TotalMinutes) -gt $minThreshhold) {
           if ($duplicated -eq 0) {
-            $report += MediaErrorBadSector -Entries $currentEventEntries
+            $Report += MediaErrorBadSector -Entries $CurrentEventEntries
           }
           else {
             $duplicated = 0
           }
 
-          $currentEventEntries = @()
+          $CurrentEventEntries.Clear()
           $lastTime = $entry.Time
         }
-        $currentEventEntries += $entry
+        $CurrentEventEntries.Add($entry)
 
         if ($null -eq $lastTime) {
           $lastTime = $entry.Time
@@ -302,9 +307,9 @@ function Resolve-MediaError-Timestamp ($LogsObj, $DriveScanList, $IssueTime) {
       }
     }
     
-    if ($currentEventEntries.Count -gt 0) {
+    if ($CurrentEventEntries.Count -gt 0) {
       if ($duplicated -eq 0 ) {
-        $report += MediaErrorBadSector -Entries $currentEventEntries
+        $Report += MediaErrorBadSector -Entries $CurrentEventEntries
       }
     }
   }
@@ -313,10 +318,10 @@ function Resolve-MediaError-Timestamp ($LogsObj, $DriveScanList, $IssueTime) {
   if ($MEDIRERROR_DEBUG -eq 1 ) {
     Write-Host "`n[統計摘要]" -ForegroundColor Cyan
     Write-Host "總受損 GB 區域數: " ($groups.Count)
-    Write-Host "總事件處理數 (跨週分割): " ($report.Count) -ForegroundColor Yellow
-    $report | Format-Table -AutoSize
+    Write-Host "總事件處理數 (跨週分割): " ($Report.Count) -ForegroundColor Yellow
+    $Report | Format-Table -AutoSize
   }     
-  return $report
+  return $Report
 }
 
 function Save-MediaErrorSect-Report($Report, $DiskMap, $IssueTime) {
@@ -358,8 +363,11 @@ function New-SectorObject ($DriveID, $GBZone, $Time) {
 }
 
 function Add-SectorToList ($List, $DriveID, $GBZone, $Time) {
-  $NewItem = New-SectorObject -DriveID $DriveID -GBZone $GBZone -Time $Time
-  $null = $List.Add($NewItem)
+  $null = $List.Add([PSCustomObject]@{
+    DriveID   = $DriveID
+    StartGB   = $GBZone
+    StartTime = $Time
+  })
 }
 
 function Get-ErrorType($DrvEvent) {

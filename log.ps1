@@ -35,7 +35,7 @@ function Write-Ticket-Summary-Readme() {
   $Readme | Export-Excel -Path $excelPath -WorksheetName "Readme" -AutoSize -BoldTopRow -FreezeTopRow   
 }
 function Write-Ticket-Summary($cvsFilePath, $QmsDB) {
-  $AllDiskReport = New-Object System.Collections.Generic.List[string]
+  $AllDiskReport = New-Object System.Collections.Generic.List[PSCustomObject]
   # 透過 Select-Object 的自定義屬性，將外層資訊與內層 DiskList 合併
   foreach ($ticket in $QmsDB) {
     $dup = Search-TicketMap -TicketMap $QmsDB -Ticket $ticket
@@ -44,7 +44,7 @@ function Write-Ticket-Summary($cvsFilePath, $QmsDB) {
         $Path = $ticket.LogLocation
         $PathTag = $ticket.QMS
         $ExcelLink = "=HYPERLINK(""$Path"",""$PathTag"")"
-        $AllDiskReport += [PSCustomObject]@{
+        $AllDiskReport.Add([PSCustomObject]@{
           Model                = $ticket.ModelName
           QMS                  = $ticket.QMS
           LogLocation          = $ExcelLink
@@ -66,7 +66,7 @@ function Write-Ticket-Summary($cvsFilePath, $QmsDB) {
           FailureReason        = $disk.FailureReason
           numOfBadSector       = $disk.numOfBadSector
           IgnorenumOfBadSector = $disk.IgnorenumOfBadSector
-        }
+        })
       }
     }
   }
@@ -81,6 +81,9 @@ function Write-Ticket-Summary($cvsFilePath, $QmsDB) {
 
 function Backup-Log-Files($FileInfo, $SerialNumber, $BaseName, $TimeStamp, $OutPutDir) {
   # deb
+  if (-not (Test-Path $OutPutDir)) {
+    return
+  }
   $SrcFileName = "$SerialNumber.deb.0.5.full.txt"
   $SrcPath = Join-Path $FileInfo.DirectoryName $SrcFileName
   if (Test-Path $SrcPath) {
