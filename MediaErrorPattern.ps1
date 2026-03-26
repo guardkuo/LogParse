@@ -65,7 +65,7 @@ $LDRebuild = $LDRebuildCmplt + $LDRebuildStart
 # Drive Channel - Chl(8) Id(122) Device is missing, Reason(8h)
 # Drive ChlNo:21 ID:0 High latency detected(op: 2a, last request latency:1394ms, request amount:7 
 #$debkeywords = @("latency", "M62:", "Drive Channel")
-$debkeywords = @("latency", "M62:", "Drive Channel")
+$debkeywords = @("M62:", "Drive Channel")
 $DrvErrKeywords = $keywords1
 
 # 建立搜尋正則：鎖定第七欄

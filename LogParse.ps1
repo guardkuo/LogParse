@@ -6,6 +6,7 @@ $DEV_DEBUG = 0
 $USE_DEBLOG = 1
 $IOTimeout = 1
 $SmartDetect = 2
+$MediaError = 10
 $DrvFailed = 3
 $BadSector = 0
 $MaxBadSector = 0
@@ -1028,6 +1029,12 @@ Get-Content $inputFile | ForEach-Object {
                             if ($CurrDisk.FailureReason -le 0) {
                               $CurrDisk.FailureReason = $SmartDetect
                             }
+                          } else {
+                            if ($_.Line -match $IoTimeoutPattern) {
+                              if ($CurrDisk.FailureReason -le 0) {
+                                $CurrDisk.FailureReason = $IOTimeout
+                              }
+                            }
                           }
                           $DrvFailBeforeErr = 0
                           $analysisResultList.Add($_.Line)
@@ -1044,14 +1051,14 @@ Get-Content $inputFile | ForEach-Object {
                   $numOfFailDrvAfterErr++
                   $numOfDrvFailAfterErrInThisQMS++
                   if ( $CurrDisk.FailureReason -le 0) {
-                    $CurrDisk.FailureReason = $DrvFailed + $DrvFailBeforeTmout
+                    $CurrDisk.FailureReason = $DrvFailed + $DrvFailAfterTmoutReason
                   }
                 }
                 else {
                   $numOfFailDrvBeforeErr++
                   $numOfDrvFailBeforeErrInThisQMS++
                   if ( $CurrDisk.FailureReason -le 0) {
-                    $CurrDisk.FailureReason = $IOTimeout
+                    $CurrDisk.FailureReason = $MediaError
                   }
                 }
               }
@@ -1059,7 +1066,6 @@ Get-Content $inputFile | ForEach-Object {
           }
         }
       }
-      Write-Host "ScsiID=$($ScsiId) the numober of bad sector = $($BadSector) $($DriveIsFailed)"
       if ($BadSector -le $MaxNumOfBadSectors -and $BadSector -gt $DefMinNumOfBadSector -and $DriveIsFailed -eq 0) {
         $CurrDisk = Get-DiskInMap -DisksList $StorageConfig.DiskList -ScsiId $ScsiId
         if ($null -ne $CurrDisk) {
