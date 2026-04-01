@@ -58,7 +58,7 @@ $keywords1 = @("220A0187", "220A0185", "220A0148", "2208C187", "2208C107", "220A
 $LDRebuildStart = @("020A8306", "020A8305", "020A8304")
 $LDRebuildCmplt = @("020A8402", "220A0302")
 # events we want
-$keywords2 = @("220A0787", "22080581", "020AA182", "320A4509", "22084202", "22080181", "220A1182", "12084243", "020AA142", "020AA281", "22080541", "22080542", "21080242", "22080141", "02081781", "22084285", "220A0749", "22081882") + $keywords + $keywords1 + $LDRebuildStart + $LDRebuildCmplt
+$keywords2 = @("220A0787", "320A4509", "22084202", "220A1182", "020AA142", "020AA281", "22080542", "02081781", "220A0749", "020AA182") + $keywords + $keywords1 + $LDRebuildStart + $LDRebuildCmplt
 
 
 $LDRebuild = $LDRebuildCmplt + $LDRebuildStart
@@ -267,6 +267,34 @@ function Get-Drive-ScanTime($DriveList, $ScsiID) {
   }
   return $null
 }
+
+function Build-Error-Event($Path, $OutPutLog, $ReportTimeStamp) {
+  $numEvent = 0
+  $ErrMatches = Select-String -Path $Path -Pattern $DrvErrPattern -ErrorAction SilentlyContinue
+  if ($null -eq $ErrMatches) {
+    Write-Warning "Invalid drvErrLog for $Path"
+    return  # Skip to next file
+  }
+
+  $ErrMatches | ForEach-Object {
+    if ($null -eq $_) {
+      continue
+    }
+    if ($_.Line -match '(?<DateTime>\d{2}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})') {
+      # 轉成 DateTime 物件進行精確的時間數值排序
+      $foundTime = [DateTime]::ParseExact($Matches['DateTime'], "yy-MM-dd HH:mm:ss", $null)
+
+      if ( $null -ne $foundTime) {
+        if (($ReportTimeStamp - $foundTime).TotalDays -lt $minAnalysisDaysBeforeIssued) {
+          $OutPutLog.Add($_.Line)
+          $numEvent++
+        }
+      }
+    }
+  }
+  return
+  
+}
 function Resolve-MediaError-Timestamp ($LogsObj, $DriveScanList, $IssueTime) {
   $Report = New-Object System.Collections.Generic.List[PSCustomObject]
   $CurrentEventEntries = New-Object System.Collections.Generic.List[PSCustomObject]
@@ -364,23 +392,23 @@ function New-SectorObject ($DriveID, $GBZone, $Time) {
 
 function Add-SectorToList ($List, $DriveID, $GBZone, $Time) {
   $null = $List.Add([PSCustomObject]@{
-    DriveID   = $DriveID
-    StartGB   = $GBZone
-    StartTime = $Time
-  })
+      DriveID   = $DriveID
+      StartGB   = $GBZone
+      StartTime = $Time
+    })
 }
 
 function Get-ErrorType($DrvEvent) {
-  if ($DrvEvent.Line -match $SmartErrorPattern) {
+  if ($DrvEvent -match $SmartErrorPattern) {
     return 2
   }
-  if ($DrvEvent.Line -match $IoErrorPattern) {
+  if ($DrvEvent -match $IoErrorPattern) {
     return 3
   }
-  if ($DrvEvent.Line -match $IoTimeoutPattern) {
+  if ($DrvEvent -match $IoTimeoutPattern) {
     return 1
   }
-  if ($DrvEvent.Line -match $HWErrorPattern) {
+  if ($DrvEvent -match $HWErrorPattern) {
     return 4
   } 
 

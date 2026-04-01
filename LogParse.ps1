@@ -12,94 +12,97 @@ $BadSector = 0
 $MaxBadSector = 0
 
 function Get-MaxValue([int32]$Value1, [int32]$Value2) {
-    # Parameter validation - though [int32] already provides some validation
-    # We'll add explicit checks for clarity
+  # Parameter validation - though [int32] already provides some validation
+  # We'll add explicit checks for clarity
     
-    if ($Value1 -gt $Value2) {
-        return $Value1
-    }
-    else {
-        return $Value2
-    }
+  if ($Value1 -gt $Value2) {
+    return $Value1
+  }
+  else {
+    return $Value2
+  }
 }
 function Get-Drive-Failure-Event($Disk, $ScsiId, $drvErrLog) {
-    foreach ($drvEvent in $drvErrLog) {
-        if ($null -eq $drvEvent) {
-            continue
-        }
-        if ($drvEvent.Line -match 'CH(?:L)?[:\s]+(?<Channel>\d+)\s+ID:(?<ID>\d+)' -or
-            $drvEvent.Line -match 'SMART-CH?[\s]+(?<Channel>\d+)\s+ID:(?<ID>\d+)') {
-            $foundID = [int64]$Matches['ID']
-            if ($foundID -eq $ScsiId) {
-                if ($null -ne $Disk) {
-                    $Disk.Failure = 2     # failure but not found
-                    $Disk.numOfBadSector = Get-MaxValue -Value1 $MaxBadSector -Value2 $BadSector
-                    $Disk.FailureReason = Get-ErrorType -DrvEvent $drvEvent
-                }
-                return $drvEvent
-            }
-        }
+  foreach ($drvEvent in $drvErrLog) {
+    if ($null -eq $drvEvent) {
+      continue
     }
-    return $null
+    if ($drvEvent -match 'CH(?:L)?[:\s]+(?<Channel>\d+)\s+ID:(?<ID>\d+)' -or
+      $drvEvent -match 'SMART-CH?[\s]+(?<Channel>\d+)\s+ID:(?<ID>\d+)') {
+      $foundID = [int64]$Matches['ID']
+      if ($foundID -eq $ScsiId) {
+        if ($null -ne $Disk) {
+          $Disk.Failure = 2     # failure but not found
+          $Disk.numOfBadSector = Get-MaxValue -Value1 $MaxBadSector -Value2 $BadSector
+          $Disk.FailureReason = Get-ErrorType -DrvEvent $drvEvent
+        }
+        Write-Host("$($ScsiId): $($Disk.FailureReason)")
+        if ($Disk.FailureReason -ne -2) {
+          return $drvEvent
+        }
+      }
+    }
+  }
+  return $null
 }
 
 function Set-TicketMap($TicketMap, $QMS, $SerialNumber, $ReportTime , $FilePath) {
-    # Parameter validation
-    if ([string]::IsNullOrWhiteSpace($QMS)) {
-        Write-Warning "Set-TicketMap: QMS parameter is null or empty."
-        return $null
-    }
-    if ([string]::IsNullOrWhiteSpace($SerialNumber)) {
-        Write-Warning "Set-TicketMap: SerialNumber parameter is null or empty."
-        return $null
-    }
-    if ([string]::IsNullOrWhiteSpace($FilePath)) {
-        Write-Warning "Set-TicketMap: FilePath parameter is null or empty."
-        return $null
-    }
+  # Parameter validation
+  if ([string]::IsNullOrWhiteSpace($QMS)) {
+    Write-Warning "Set-TicketMap: QMS parameter is null or empty."
+    return $null
+  }
+  if ([string]::IsNullOrWhiteSpace($SerialNumber)) {
+    Write-Warning "Set-TicketMap: SerialNumber parameter is null or empty."
+    return $null
+  }
+  if ([string]::IsNullOrWhiteSpace($FilePath)) {
+    Write-Warning "Set-TicketMap: FilePath parameter is null or empty."
+    return $null
+  }
 
-    foreach ($ticket in $TicketMap) {
-        if ($ticket.QMS -eq $QMS -and $ticket.SN -eq $SerialNumber) {
-            return $null
-        }
+  foreach ($ticket in $TicketMap) {
+    if ($ticket.QMS -eq $QMS -and $ticket.SN -eq $SerialNumber) {
+      return $null
     }
-    return [PSCustomObject]@{
-        ModelName             = 0
-        QMS                   = $QMS
-        SN                    = $SerialNumber
-        reportTime            = $ReportTime
-        LogLocation           = $FilePath
-        MaxRespTime           = 0
-        MaxTag                = 0
-        MaxIOTimeout          = 0
-        numOfFailDrv          = 0
-        numOfFailDrvBeforeErr = 0
-        numOfFailDrvAfterErr  = 0
-        numOfFaidDrvNotFound  = 0   # a drive will be not failed but this drive had been failed in the event log
-        numOfDrvNotFailed     = 0   # a drive will be failed but this drive isn't failed in the event log
-        DiskList              = New-Object System.Collections.Generic.List[PSCustomObject]
-    }
+  }
+  return [PSCustomObject]@{
+    ModelName             = 0
+    QMS                   = $QMS
+    SN                    = $SerialNumber
+    reportTime            = $ReportTime
+    LogLocation           = $FilePath
+    MaxRespTime           = 0
+    MaxTag                = 0
+    MaxIOTimeout          = 0
+    numOfFailDrv          = 0
+    numOfFailDrvBeforeErr = 0
+    numOfFailDrvAfterErr  = 0
+    numOfFaidDrvNotFound  = 0   # a drive will be not failed but this drive had been failed in the event log
+    numOfDrvNotFailed     = 0   # a drive will be failed but this drive isn't failed in the event log
+    DiskList              = New-Object System.Collections.Generic.List[PSCustomObject]
+  }
 }
 
 function Update-TicketMap($TicketMap, $Conf) {
-    # Parameter validation
-    if ($null -eq $TicketMap) {
-        Write-Warning "Update-TicketMap: TicketMap parameter is null."
-        return
-    }
-    if ($null -eq $Conf) {
-        Write-Warning "Update-TicketMap: Conf parameter is null."
-        return
-    }
-    if ($null -eq $Conf.Model) {
-        Write-Warning "Update-TicketMap: Conf.Model is null."
-        return
-    }
+  # Parameter validation
+  if ($null -eq $TicketMap) {
+    Write-Warning "Update-TicketMap: TicketMap parameter is null."
+    return
+  }
+  if ($null -eq $Conf) {
+    Write-Warning "Update-TicketMap: Conf parameter is null."
+    return
+  }
+  if ($null -eq $Conf.Model) {
+    Write-Warning "Update-TicketMap: Conf.Model is null."
+    return
+  }
 
-    $TicketMap.ModelName = $Conf.Model
-    $TicketMap.MaxRespTime = $Conf.MaxRespTime
-    $TicketMap.MaxTag = $Conf.MaxTag
-    $TicketMap.MaxIOTimeout = $Conf.MaxIOTimeout
+  $TicketMap.ModelName = $Conf.Model
+  $TicketMap.MaxRespTime = $Conf.MaxRespTime
+  $TicketMap.MaxTag = $Conf.MaxTag
+  $TicketMap.MaxIOTimeout = $Conf.MaxIOTimeout
 }
 
 function Search-TicketMap($TicketMap, $Ticket) {
@@ -121,29 +124,30 @@ function Search-TicketMap($TicketMap, $Ticket) {
 }
 # --- [強化] 自動建立磁碟對照表函式 ---
 function Get-DiskMap($configPath) {
-   # 讀取檔案內容
-   if (-not (Test-Path $configPath)) {
-       Write-Error "Configuration file not found: $configPath"
-       return $null
-   }
+  # 讀取檔案內容
+  if (-not (Test-Path $configPath)) {
+    Write-Error "Configuration file not found: $configPath"
+    return $null
+  }
    
-   try {
-       $configContent = Get-Content -Path $configPath -Raw
-       if (-not $configContent) {
-           Write-Error "Configuration file is empty: $configPath"
-           return $null
-       }
-   } catch {
-       Write-Error "Failed to read configuration file: $configPath - $_"
-       return $null
-   }
+  try {
+    $configContent = Get-Content -Path $configPath -Raw
+    if (-not $configContent) {
+      Write-Error "Configuration file is empty: $configPath"
+      return $null
+    }
+  }
+  catch {
+    Write-Error "Failed to read configuration file: $configPath - $_"
+    return $null
+  }
    
-   # Fix typo: $configCOntent -> $configContent
-   $Model = $configContent -split 'Array'
-   if (-not $Model -or $Model.Length -eq 0) {
-       Write-Error "Unable to extract model information from configuration: $configPath"
-       return $null
-   }
+  # Fix typo: $configCOntent -> $configContent
+  $Model = $configContent -split 'Array'
+  if (-not $Model -or $Model.Length -eq 0) {
+    Write-Error "Unable to extract model information from configuration: $configPath"
+    return $null
+  }
    
   $ModelName = $Model[0]
   $regexResp = 'Maximum Drive Response Timeout:\s+(?<Value>\S+)'
@@ -197,25 +201,25 @@ function Get-DiskMap($configPath) {
 }
 
 function Get-DiskInMap($DisksList, $ScsiId) {
-    # Parameter validation
-    if ($null -eq $DisksList) {
-        Write-Warning "Get-DiskInMap: DisksList parameter is null."
-        return $null
-    }
-    if (-not ($DisksList -is [System.Collections.IEnumerable])) {
-        Write-Warning "Get-DiskInMap: DisksList is not an enumerable collection."
-        return $null
-    }
-
-    foreach ($disk in $DisksList) {
-        if ($null -eq $disk) {
-            continue
-        }
-        if ($disk.ID -eq $ScsiId) {
-            return $disk
-        }
-    }
+  # Parameter validation
+  if ($null -eq $DisksList) {
+    Write-Warning "Get-DiskInMap: DisksList parameter is null."
     return $null
+  }
+  if (-not ($DisksList -is [System.Collections.IEnumerable])) {
+    Write-Warning "Get-DiskInMap: DisksList is not an enumerable collection."
+    return $null
+  }
+
+  foreach ($disk in $DisksList) {
+    if ($null -eq $disk) {
+      continue
+    }
+    if ($disk.ID -eq $ScsiId) {
+      return $disk
+    }
+  }
+  return $null
 }
 
 function Set-DiskModel ($DiskModelMap, $VendorProduct) {
@@ -236,117 +240,115 @@ function Set-DiskModel ($DiskModelMap, $VendorProduct) {
   }
   
   $DiskModelMap.Add($NewDisk)
-
-  return $NewDisk
 }
 
 function Get-OfficeID {
-   param([string]$Path)
+  param([string]$Path)
    
-   if ([string]::IsNullOrWhiteSpace($Path)) {
-       Write-Warning "Get-OfficeID: Path is null or empty."
-       return "XXX-Unknow"
-   }
+  if ([string]::IsNullOrWhiteSpace($Path)) {
+    Write-Warning "Get-OfficeID: Path is null or empty."
+    return "XXX-Unknow"
+  }
    
-   if ($Path -match "[A-Za-z]+-\d+") {
-     return $Matches[0]
-   }
-   return "XXX-Unknow"
- }
+  if ($Path -match "[A-Za-z]+-\d+") {
+    return $Matches[0]
+  }
+  return "XXX-Unknow"
+}
 
 function Test-DateTime-Before ([DateTime]$Time1, [DateTime]$Time2) {
-    # Parameter validation
-    if ($null -eq $Time1) {
-        Write-Warning "Test-DateTime-Before: Time1 parameter is null."
-        return 0  # Return a neutral value when invalid
-    }
-    if ($null -eq $Time2) {
-        Write-Warning "Test-DateTime-Before: Time2 parameter is null."
-        return 0  # Return a neutral value when invalid
-    }
+  # Parameter validation
+  if ($null -eq $Time1) {
+    Write-Warning "Test-DateTime-Before: Time1 parameter is null."
+    return 0  # Return a neutral value when invalid
+  }
+  if ($null -eq $Time2) {
+    Write-Warning "Test-DateTime-Before: Time2 parameter is null."
+    return 0  # Return a neutral value when invalid
+  }
      
-   if ((($Time1 - $Time2).TotalMinutes) -gt 0) {
-     return -1
-   }
-   else {
-     return 1
-   }
- }
+  if ((($Time1 - $Time2).TotalMinutes) -gt 0) {
+    return -1
+  }
+  else {
+    return 1
+  }
+}
 
 function Set-DriveScan-Time($DriveScanList, $ScsiID, [DateTime]$Time) {
-    # Parameter validation
-    if ([string]::IsNullOrWhiteSpace($ScsiID)) {
-        Write-Warning "Set-DriveScan-Time: ScsiID parameter is null or empty."
-        return $null
-    }
-    if ($null -eq $Time) {
-        Write-Warning "Set-DriveScan-Time: Time parameter is null."
-        return $null
-    }
-    if ($null -eq $DriveScanList) {
-        Write-Warning "Set-DriveScan-Time: DriveScanList is null."
-        return $null
-    }
+  # Parameter validation
+  if ([string]::IsNullOrWhiteSpace($ScsiID)) {
+    Write-Warning "Set-DriveScan-Time: ScsiID parameter is null or empty."
+    return $null
+  }
+  if ($null -eq $Time) {
+    Write-Warning "Set-DriveScan-Time: Time parameter is null."
+    return $null
+  }
+  if ($null -eq $DriveScanList) {
+    Write-Warning "Set-DriveScan-Time: DriveScanList is null."
+    return $null
+  }
 
-    foreach ($Drv in $DriveScanList) {
-        if ($null -eq $Drv) {
-            continue
-        }
-        if ($Drv.ID -eq $ScsiID) {
-            $Drv.ScanTime = $Time
-            return $null
-        }
+  foreach ($Drv in $DriveScanList) {
+    if ($null -eq $Drv) {
+      continue
     }
-    $Drv = [PSCustomObject]@{
-        ID       = $ScsiID
-        ScanTime = $Time
+    if ($Drv.ID -eq $ScsiID) {
+      $Drv.ScanTime = $Time
+      return $null
     }
-    return $Drv
+  }
+  $Drv = [PSCustomObject]@{
+    ID       = $ScsiID
+    ScanTime = $Time
+  }
+  return $Drv
 }
 
 function Set-LDRebuild-Time($RebuildList, $LD, $Starting, [DateTime]$Time) {
-    # Parameter validation
-    if ($null -eq $RebuildList) {
-        Write-Warning "Set-LDRebuild-Time: RebuildList parameter is null."
-        return $null
-    }
-    if ([string]::IsNullOrWhiteSpace($LD)) {
-        Write-Warning "Set-LDRebuild-Time: LD parameter is null or empty."
-        return $null
-    }
-    if ($null -eq $Time) {
-        Write-Warning "Set-LDRebuild-Time: Time parameter is null."
-        return $null
-    }
+  # Parameter validation
+  if ($null -eq $RebuildList) {
+    Write-Warning "Set-LDRebuild-Time: RebuildList parameter is null."
+    return $null
+  }
+  if ([string]::IsNullOrWhiteSpace($LD)) {
+    Write-Warning "Set-LDRebuild-Time: LD parameter is null or empty."
+    return $null
+  }
+  if ($null -eq $Time) {
+    Write-Warning "Set-LDRebuild-Time: Time parameter is null."
+    return $null
+  }
 
-    foreach ($rebuild in $RebuildList) {
-        if ($null -eq $rebuild) {
-            continue
-        }
-        if ($rebuild.LDID -eq $LD) {
-            if ($Starting -eq 1 ) {
-                if ($null -eq $rebuild.EndTime) {
-                    $rebuild.StartTime = $Time
-                    return $null
-                }
-            }
-            else {
-                if ($null -eq $rebuild.EndTime -and $null -ne $rebuild.StartTime) {
-                    $rebuild.EndTime = $Time
-                    return $null
-                }
-            }
-        }
+  foreach ($rebuild in $RebuildList) {
+    if ($null -eq $rebuild) {
+      continue
     }
+    if ($rebuild.LDID -eq $LD) {
+      if ($Starting -eq 1 ) {
+        if ($null -eq $rebuild.EndTime) {
+          $rebuild.StartTime = $Time
+          return $null
+        }
+      }
+      else {
+        if ($null -eq $rebuild.EndTime -and $null -ne $rebuild.StartTime) {
+          $rebuild.EndTime = $Time
+          return $null
+        }
+      }
+    }
+  }
    
-    if ($Starting -eq 0) {
-        return $null
-    }
-    return $rebuild = [PSCustomObject]@{
-        LDID      = $LD
-        StartTime = $Time
-        EndTime   = $null
-    }
+  if ($Starting -eq 0) {
+    return $null
+  }
+  return $rebuild = [PSCustomObject]@{
+    LDID      = $LD
+    StartTime = $Time
+    EndTime   = $null
+  }
 }
 
 function Trace-LDRebuiding($RebuildList, $LD, $Time) {
@@ -366,115 +368,115 @@ function Trace-LDRebuiding($RebuildList, $LD, $Time) {
 }
 
 function Add-FailureDrv($DrvList, $ResultList, $Vendor) {
-    # Parameter validation
-    if ($null -eq $DrvList) {
-        Write-Warning "Add-FailureDrv: DrvList parameter is null."
-        return $null
-    }
+  # Parameter validation
+  if ($null -eq $DrvList) {
+    Write-Warning "Add-FailureDrv: DrvList parameter is null."
+    return $null
+  }
     
-    if ($null -eq $ResultList) {
-        Write-Warning "Add-FailureDrv: ResultList parameter is null."
-        return $null
-    }
+  if ($null -eq $ResultList) {
+    Write-Warning "Add-FailureDrv: ResultList parameter is null."
+    return $null
+  }
 
-    $ResultList.Add("")
-    if ($null -ne $Vendor) {
-        $ResultList.Add("    $($Vendor)");
-        $DrvList.Add($Vendor)
-    }
+  $ResultList.Add("")
+  if ($null -ne $Vendor) {
+    $ResultList.Add("    $($Vendor)");
+    $DrvList.Add($Vendor)
+  }
 }
 
 function Get-DrvFailure-Reason($FailureEvent, $ScsiId) {
-    # Parameter validation
-    if ([string]::IsNullOrWhiteSpace($FailureEvent)) {
-        Write-Warning "Get-DrvFailure-Reason: FailureEvent is null or empty."
-        return -1
-    }
-    if (-not [int]::TryParse($ScsiId, [ref]$null)) {
-        Write-Warning "Get-DrvFailure-Reason: ScsiId is not a valid integer: $ScsiId"
-        return -1
-    }
+  # Parameter validation
+  if ([string]::IsNullOrWhiteSpace($FailureEvent)) {
+    Write-Warning "Get-DrvFailure-Reason: FailureEvent is null or empty."
+    return -1
+  }
+  if (-not [int]::TryParse($ScsiId, [ref]$null)) {
+    Write-Warning "Get-DrvFailure-Reason: ScsiId is not a valid integer: $ScsiId"
+    return -1
+  }
 
-    $reason = -1
-    if ($FailureEvent -match 'M62: Chl (?<CHL>\d+) Id (?<ID>[0-9a-fA-F]+)') {    
-        $foundID = [Convert]::ToInt64($Matches['ID'], 16)
+  $reason = -1
+  if ($FailureEvent -match 'M62: Chl (?<CHL>\d+) Id (?<ID>[0-9a-fA-F]+)') {    
+    $foundID = [Convert]::ToInt64($Matches['ID'], 16)
+    if ($foundID -eq $ScsiId) {
+      $reason = 1
+    }
+  }
+  else {
+    #Drive ChlNo:8 ID:276 High latency detected(op: 0, last request latency:767ms, request amount:65535 
+    if ($FailureEvent -match 'Drive ChlNo:(?<CHL>\d+) ID:(?<ID>\d+)') {
+      $foundID = [Convert]::ToInt64($Matches['ID'])
+      if ($foundID -eq $ScsiId) {
+        $reason = 2
+      }
+    } else 
+    {
+      # Drive Channel - Chl(8) Id(122) Device is missing, Reason(8h)
+      # Drive Channel - Chl(12) Id(23) srb(00000000h) Information Aborted I/O is submitted to the hardware
+      if ($FailureEvent -match 'Drive Channel - Chl\((?<CHL>\d+)\) Id\((?<ID>\d+)\)') {
+        $foundID = [Convert]::ToInt64($Matches['ID'])
         if ($foundID -eq $ScsiId) {
-            $reason = 1
+          $reason = 3
         }
+      }
     }
-    else {
-        #Drive ChlNo:8 ID:276 High latency detected(op: 0, last request latency:767ms, request amount:65535 
-        if ($FailureEvent -match 'Drive ChlNo:(?<CHL>\d+) ID:(?<ID>\d+)') {
-            $foundID = [Convert]::ToInt64($Matches['ID'])
-            if ($foundID -eq $ScsiId) {
-                $reason = 2
-            }
-        }
-        else {
-            # Drive Channel - Chl(8) Id(122) Device is missing, Reason(8h)
-            # Drive Channel - Chl(12) Id(23) srb(00000000h) Information Aborted I/O is submitted to the hardware
-            if ($FailureEvent -match 'Drive Channel - Chl\((?<CHL>\d+)\) Id\((?<ID>\d+)\)') {
-                $foundID = [Convert]::ToInt64($Matches['ID'])
-                if ($foundID -eq $ScsiId) {
-                    $reason = 3
-                }
-            }
-        }
-    }
-    return $reason
+  }
+  return $reason
 }
 
 # Load required modules with proper error handling while maintaining global scope
 function Load-RequiredModule {
-    param(
-        [Parameter(Mandatory=$true)]
-        [string]$ModulePath,
-        [Parameter(Mandatory=$true)]
-        [string]$ModuleName
-    )
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$ModulePath,
+    [Parameter(Mandatory = $true)]
+    [string]$ModuleName
+  )
     
-    if (-not (Test-Path $ModulePath)) {
-        Write-Error "找不到 $ModuleName，請確保檔案在同目錄。路徑: $ModulePath"
-        return $false
-    }
+  if (-not (Test-Path $ModulePath)) {
+    Write-Error "找不到 $ModuleName，請確保檔案在同目錄。路徑: $ModulePath"
+    return $false
+  }
     
-    try {
-        # Dot-source in global scope to maintain variable visibility
-        . $ModulePath
-        Write-Verbose "成功載入 $ModuleName"
-        return $true
-    }
-    catch {
-        Write-Error "載入 $ModuleName 時發生錯誤: $_"
-        return $false
-    }
+  try {
+    # Dot-source in global scope to maintain variable visibility
+    . $ModulePath
+    Write-Verbose "成功載入 $ModuleName"
+    return $true
+  }
+  catch {
+    Write-Error "載入 $ModuleName 時發生錯誤: $_"
+    return $false
+  }
 }
 
 # Load required modules
 if (-not (Test-Path ".\log.ps1")) {
-    Write-Error "找不到 log.ps1，請確保檔案在同目錄。"
-    return
+  Write-Error "找不到 log.ps1，請確保檔案在同目錄。"
+  return
 }
 if (-not (Test-Path ".\MediaErrorPattern.ps1")) {
-    Write-Error "找不到 MediaErrorPattern.ps1，請確保檔案在同目錄。"
-    return
+  Write-Error "找不到 MediaErrorPattern.ps1，請確保檔案在同目錄。"
+  return
 }
 if (-not (Test-Path ".\LogParseCfg.ps1")) {
-    Write-Error "找不到 LogParseCfg.ps1，請確保檔案在同目錄。"
-    return
+  Write-Error "找不到 LogParseCfg.ps1，請確保檔案在同目錄。"
+  return
 }
 
 try {
-    . ".\log.ps1"
-    . ".\MediaErrorPattern.ps1"
-    . ".\LogParseCfg.ps1"
+  . ".\log.ps1"
+  . ".\MediaErrorPattern.ps1"
+  . ".\LogParseCfg.ps1"
 }
 catch {
-    Write-Error "載入必要的腳本檔案時發生錯誤: $_"
-    return
+  Write-Error "載入必要的腳本檔案時發生錯誤: $_"
+  return
 }
 
-write-host "開始分析檔案 (門檻：至少需包含 $minMatchCount 筆相關錯誤)..." -ForegroundColor Cyan
+Write-Host "開始分析檔案 (門檻：至少需包含 $minMatchCount 筆相關錯誤)..." -ForegroundColor Cyan
 $AllQMSTicketDB = New-Object System.Collections.Generic.List[PSCustomObject]
 $AnalysisQMSTicketDB = New-Object System.Collections.Generic.List[PSCustomObject]
 # 準備存儲總結結果的清單
@@ -492,12 +494,13 @@ $numOfDrvFailCase = 0
 $numOfFailDrvBeforeErr = 0
 $numOfFailDrvAfterErr = 0
 
-$analysisDisks =  New-Object System.Collections.Generic.List[PSCustomObject]
+$analysisDisks = New-Object System.Collections.Generic.List[PSCustomObject]
 $FailureDrvList = New-Object System.Collections.Generic.List[PSCustomObject]
 $RebuildSeq = New-Object System.Collections.Generic.List[PSCustomObject]
 $drvScanSeq = New-Object System.Collections.Generic.List[PSCustomObject]
 $debList = New-Object System.Collections.Generic.List[string]
 $evtList = New-Object System.Collections.Generic.List[string]
+$drvErrMatches = New-Object System.Collections.Generic.List[string]
 # 2. 逐一處理 Search_Report.txt 中的檔案
 Get-Content $inputFile | ForEach-Object {
   $evtPath = $_.Trim()
@@ -605,11 +608,12 @@ Get-Content $inputFile | ForEach-Object {
         $allMatches = $MediaErr_matches
       }
       else {
-        if($null -ne $officeID) {
-            $OutPutDir = $officeID
-        } else {
-            Write-Error "$officeID 不存在"
-            return
+        if ($null -ne $officeID) {
+          $OutPutDir = $officeID
+        }
+        else {
+          Write-Error "$officeID 不存在"
+          return
         }
         $allMatches = $MediaErr_matches + $drvFailedMatches;
       }
@@ -622,7 +626,7 @@ Get-Content $inputFile | ForEach-Object {
       if (!(Test-Path $OutPutDir)) {
         New-Item -ItemType Directory -Path $OutPutDir -Force | Out-Null
         if ($DEBUG -eq 1 ) {
-          write-host "建立資料夾: $OutPutDir" -ForegroundColor Gray
+          Write-Host "建立資料夾: $OutPutDir" -ForegroundColor Gray
         }
       } 
 
@@ -674,10 +678,10 @@ Get-Content $inputFile | ForEach-Object {
 
 
       # Drive failure detection
-      $drvErrMatches = Select-String -Path $evtPath -Pattern $DrvErrPattern -ErrorAction SilentlyContinue
-      if ($null -eq $drvErrMatches) {
-          Write-Warning "Invalid drvErrLog for $officeID"
-          return  # Skip to next file
+      Build-Error-Event -Path $evtPath -OutPutLog $drvErrMatches -ReportTimeStamp $qmsIssueTime
+      if ($drvErrMatches.Count -eq 0) {
+        Write-Warning "Invalid drvErrLog for $officeID"
+        return  # Skip to next file
       }
       $rebuildMatches = Select-String -Path $evtPath -Pattern $RebuildPattern -ErrorAction SilentlyContinue
       $rebuildMatches | ForEach-Object {
@@ -729,7 +733,7 @@ Get-Content $inputFile | ForEach-Object {
       $sortedFinalAnalysisReport | ForEach-Object {
         if ($null -ne $_.DriveID) {
           if ($DEBUG -eq 1) {
-            write-host "ID: $($_.DriveID) GB: $($_.StartGB) $($_.StartTime) $($_.ErrorCount)" -ForegroundColor Gray
+            Write-Host ">>ID: $($_.DriveID) GB: $($_.StartGB) $($_.StartTime) $($_.ErrorCount) $($ScsiId)" -ForegroundColor Gray
           }
           if ($ScsiId -eq -1) {
             $ScsiId = $_.DriveID
@@ -751,12 +755,12 @@ Get-Content $inputFile | ForEach-Object {
           else {
             if ($_.DriveID -ne $ScsiId) {
               if ($DEV_DEBUG -eq 1) {
-                write-host("SCSI ID: $($ScsiId)")
-                write-host("BadSector=$($BadSector), workreport.count=$($workingReport.Count)")
-                write-host("Go to next SCSI ID: $($_.DriveID)")
+                Write-Host("SCSI ID: $($ScsiId)")
+                Write-Host("BadSector=$($BadSector), workreport.count=$($workingReport.Count)")
+                Write-Host("Go to next SCSI ID: $($_.DriveID)")
               }
               # parse current disk
-              
+
               if ($BadSector -le $MaxNumOfBadSectors -and $BadSector -gt $DefMinNumOfBadSector -and $DriveIsFailed -eq 0) {
                 if ($null -ne $CurrDisk) {
                   if ($CurrDisk.ID -ne $ScsiId) {
@@ -773,7 +777,7 @@ Get-Content $inputFile | ForEach-Object {
                     $numOfDrvFailCase++
                     $numOfDrvFailButNotFound++
                     Add-FailureDrv -DrvList $FailureDrvList -ResultList $analysisResultList -Vendor $currentVendor
-                    $DiskModel = Set-DiskModel -DiskModelMap $analysisDisks -VendorProduct $CurrDisk.VendorProduct
+                    Set-DiskModel -DiskModelMap $analysisDisks -VendorProduct $CurrDisk.VendorProduct
                     $analysisResultList.Add($drvEvent.Line)
                     $logList.Add($drvEvent.Line)
                   }
@@ -868,7 +872,7 @@ Get-Content $inputFile | ForEach-Object {
                       $lastTime = $currItem.StartTime
                     }
                     if ($DEV_DEBUG -eq 1) {
-                      write-host("SCSI ID: $($ScsiId) , Add new item, $($currItem.StartGB)")
+                      Write-Host("SCSI ID: $($ScsiId) , Add new item, $($currItem.StartGB)")
                     }
                     Add-SectorToList -List $workingReport -DriveID $currItem.DriveID -GBZone $currItem.StartGB -Time $currItem.StartTime
                   }
@@ -890,7 +894,7 @@ Get-Content $inputFile | ForEach-Object {
                   
                     if ($dupSector -eq 0) {
                       if ($DEV_DEBUG -eq 1) {
-                        write-host("SCSI ID: $($ScsiId) was failed, Add new item, $($currItem.StartGB)")
+                        Write-Host("SCSI ID: $($ScsiId) was failed, Add new item, $($currItem.StartGB)")
                       }
                       Add-SectorToList -List $workingReport -DriveID $currItem.DriveID -GBZone $currItem.StartGB -Time $currItem.StartTime
                     }
@@ -899,11 +903,6 @@ Get-Content $inputFile | ForEach-Object {
                 }
               }
               else {
-                if ($DEV_DEBUG -eq 1) {
-                  write-host("SCSI ID: $($ScsiId)")
-                  write-host("BadSector=$($BadSector), workreport.count=$($workingReport.Count)")
-                  write-host("Go to next SCSI ID: $($_.DriveID)")
-                }
                 if ($BadSector -le $MaxNumOfBadSectors -and $BadSector -gt $DefMinNumOfBadSector -and $DriveIsFailed -eq 0) {
                   $drvEvent = Get-Drive-Failure-Event -Disk $CurrDisk -ScsiId $ScsiId -drvErrLog $drvErrMatches
                   if ($null -ne $drvEvent) {
@@ -915,7 +914,7 @@ Get-Content $inputFile | ForEach-Object {
                     }
                     $currentVendor = $DiskMap[$ScsiId.ToString()]
                     Add-FailureDrv -DrvList $FailureDrvList -ResultList $analysisResultList -Vendor $currentVendor
-                    $DiskModel = Set-DiskModel -DiskModelMap $analysisDisks -VendorProduct $CurrDisk.VendorProduct
+                    Set-DiskModel -DiskModelMap $analysisDisks -VendorProduct $CurrDisk.VendorProduct
                     $thisTicket.DiskList.Add($CurrDisk)
 
                     $analysisResultList.Add($drvEvent.Line)
@@ -936,14 +935,12 @@ Get-Content $inputFile | ForEach-Object {
             }
             else {
               if ($DEV_DEBUG -eq 1) {
-                write-host("LD $($LDID) is reubilding. ScsiID $($ScsiId), $($CurrDisk.IgnorenumOfBadSector)")
+                Write-Host("LD $($LDID) is reubilding. ScsiID $($ScsiId), $($CurrDisk.IgnorenumOfBadSector)")
               }
               $CurrDisk.IgnorenumOfBadSector++
             }
-            if ($DEV_DEBUG -eq 1 -and $DriveIsFailed -eq 0) {
-              write-host("SCSI ID: $($ScsiId) BadSector=$($BadSector), workreport.count=$($workingReport.Count) Failed=$($DriveIsFailed)")
-            }
             if ($BadSector -gt $MaxNumOfBadSectors -and $DriveIsFailed -eq 0) {
+              # The number of bad sector is over than throughold
               if ($numOfDrvFail -eq 0) {
                 Write-Ticket-Title -LogList $analysisResultList -Qms $officeID -SerialNumber $idPart -StorageConf $StorageConfig
               }
@@ -954,50 +951,51 @@ Get-Content $inputFile | ForEach-Object {
               if ($null -ne $CurrDisk) {
                 $CurrDisk.numOfBadSector = Get-MaxValue -Value1 $MaxBadSector -Value2 $BadSector
                 $CurrDisk.Failure = 1
-                $DiskModel = Set-DiskModel -DiskModelMap $analysisDisks -VendorProduct $CurrDisk.VendorProduct
+                Set-DiskModel -DiskModelMap $analysisDisks -VendorProduct $CurrDisk.VendorProduct
                 $thisTicket.DiskList.Add($CurrDisk)
               }
               else {
                 $errorlogList.Add("$($officeID): 找不到 SCSI ID:$($ScsiId)。")
               }
-
               $logList.Add("           $($_.StartTime | Get-Date -Format "yy-MM-dd HH-mm-ss") ID:$($ScsiId)     Drive Failure")
               $analysisResultList.Add("           $($_.StartTime | Get-Date -Format "yy-MM-dd HH-mm-ss") ID:$($ScsiId)     Drive Failure")
               $DriveIsFailed = 1
               $DrvFailDetected = 1
               $FailAlogDetected = 0
-              $LimitTimeoutAlogDetect = 0
               $DrvFailBeforeTmout = -1
               $DrvFailAfterTmoutReason = -1
               $DrvFailBeforeErr = -1
               $EventTime = $_.StartTime
               $reason = 0
-              $debList | ForEach-Object {
+              foreach ($deb in $debList) {
                 if ($DrvFailBeforeTmout -le 0) {
-                  $reason = Get-DrvFailure-Reason -FailureEvent $_ -ScsiId $ScsiId
-
-                  if ($reason -ge 0) {
-                    if ($FailAlogDetected -eq 0 -and $_ -match '(?<DateTime>\d{2}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})') {
-                      # 轉成 DateTime 物件進行精確的時間數值排序
-                      $foundTime = [DateTime]::ParseExact($Matches['DateTime'], "yy-MM-dd HH:mm:ss", $null)
-                      if ($null -ne $foundTime) {
-                        if (($EventTime - $foundTime).TotalMinutes -le 0) {
-                          if ($DrvFailBeforeTmout -lt 0) {
-                            $DrvFailBeforeTmout = $reason
+                  if ($deb -match '(?<DateTime>\d{2}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})') {
+                    $foundTime = [DateTime]::ParseExact($Matches['DateTime'], "yy-MM-dd HH:mm:ss", $null)
+                    # The event must be in $minAnalysisDaysBeforeIssued
+                    if ($null -ne $foundTime -and ($qmsIssueTime - $foundTime).TotalDays -le $minAnalysisDaysBeforeIssued) {
+                      $reason = Get-DrvFailure-Reason -FailureEvent $deb -ScsiId $ScsiId
+                      if ($reason -ge 0) {
+                        if ($FailAlogDetected -eq 0) {
+                          # 轉成 DateTime 物件進行精確的時間數值排序
+                          $foundTime = [DateTime]::ParseExact($Matches['DateTime'], "yy-MM-dd HH:mm:ss", $null)
+                          if (($EventTime - $foundTime).TotalMinutes -le 0) {
+                            if ($DrvFailBeforeTmout -lt 0) {
+                              $DrvFailBeforeTmout = $reason
+                            }
+                            $FailAlogDetected = 1
+                            $analysisResultList.Add($deb)
+                            $logList.Add($deb)
+                            break
                           }
-                          $FailAlogDetected = 1
-                          $analysisResultList.Add($_)
-                          $logList.Add($_)
-                          return
-                        }
-                        else {
-                          $DrvFailBeforeTmout = 0
-                          if ($DrvFailAfterTmoutReason -lt 0) {
-                            $DrvFailAfterTmoutReason = $reason
-                            $DrvFailAfterTmoutTime = $foundTime
+                          else {
+                            $DrvFailBeforeTmout = 0
+                            if ($DrvFailAfterTmoutReason -lt 0) {
+                              $DrvFailAfterTmoutReason = $reason
+                              #$DrvFailAfterTmoutTime = $foundTime
+                            }
+                            $analysisResultList.Add($deb)
+                            $logList.Add($deb)
                           }
-                          $analysisResultList.Add($_)
-                          $logList.Add($_)
                         }
                       }
                     }
@@ -1005,14 +1003,14 @@ Get-Content $inputFile | ForEach-Object {
                 }
               }
               $FailAlogDetected = 0
-              #02081382 CHL:12 ID:24 (JBODId:0 SlotNum:7)  Drive INFORM: Media Error Encountered
+              #0a0b0e82 CHL:12 ID:24 (JBODId:0 SlotNum:7)  Drive INFORM: Media Error Encountered
               #12084283 WARN:SMART-CH 12 ID:24 (JBODId:0 SlotNum:7) Drive Event Detected 
               $drvErrMatches | ForEach-Object {
-                if ($_.Line -match 'CH(?:L)?[:\s]+(?<Channel>\d+)\s+ID:(?<ID>\d+)' -or
-                  $_.Line -match 'SMART-CH?[\s]+(?<Channel>\d+)\s+ID:(?<ID>\d+)') {
+                if ($_ -match 'CH(?:L)?[:\s]+(?<Channel>\d+)\s+ID:(?<ID>\d+)' -or
+                  $_ -match 'SMART-CH?[\s]+(?<Channel>\d+)\s+ID:(?<ID>\d+)') {
                   $foundID = [int64]$Matches['ID']
                   if ($foundID -eq $ScsiId) {
-                    if ($FailAlogDetected -eq 0 -and $_.Line -match '(?<Date>\d{2}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})') {
+                    if ($FailAlogDetected -eq 0 -and $_ -match '(?<Date>\d{2}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})') {
                       $foundTime = [DateTime]::ParseExact($Matches['Date'], "yy-MM-dd HH:mm:ss", $null)
                       if ($null -ne $foundTime) {
                         if (($EventTime - $foundTime).TotalMinutes -le 0) {
@@ -1020,25 +1018,26 @@ Get-Content $inputFile | ForEach-Object {
                             $DrvFailBeforeErr = 1
                           }
                           $FailAlogDetected = 1
-                          $analysisResultList.Add($_.Line)
-                          $logList.Add($_.Line)
+                          $analysisResultList.Add($_)
+                          $logList.Add($_)
                           return
                         }
                         else {
-                          if ($_.Line -match $SmartErrorPattern) {
+                          if ($_ -match $SmartErrorPattern) {
                             if ($CurrDisk.FailureReason -le 0) {
                               $CurrDisk.FailureReason = $SmartDetect
                             }
-                          } else {
-                            if ($_.Line -match $IoTimeoutPattern) {
+                          }
+                          else {
+                            if ($_ -match $IoTimeoutPattern) {
                               if ($CurrDisk.FailureReason -le 0) {
                                 $CurrDisk.FailureReason = $IOTimeout
                               }
                             }
                           }
                           $DrvFailBeforeErr = 0
-                          $analysisResultList.Add($_.Line)
-                          $logList.Add($_.Line)
+                          $analysisResultList.Add($_)
+                          $logList.Add($_)
                         }
                       }
                     }
@@ -1083,7 +1082,7 @@ Get-Content $inputFile | ForEach-Object {
             $numOfDrvFailButNotFound++
             $currentVendor = $DiskMap[$ScsiId.ToString()]
             Add-FailureDrv -DrvList $FailureDrvList -ResultList $analysisResultList -Vendor $currentVendor
-            $DiskModel = Set-DiskModel -DiskModelMap $analysisDisks -VendorProduct $CurrDisk.VendorProduct
+            Set-DiskModel -DiskModelMap $analysisDisks -VendorProduct $CurrDisk.VendorProduct
             $analysisResultList.Add($drvEvent.Line)
             $logList.Add($drvEvent.Line)
           }
@@ -1125,7 +1124,7 @@ Get-Content $inputFile | ForEach-Object {
       }
       else {
         if ( $numOfAnalysisDrv -gt 0) {
-            $AnalysisQMSTicketDB.Add($thisTicket)
+          $AnalysisQMSTicketDB.Add($thisTicket)
 
         }
       }
@@ -1214,7 +1213,7 @@ Get-Content $inputFile | ForEach-Object {
             Backup-Log-Files -FileInfo $fileInfo -SerialNumber $idPart -BaseName $baseName -TimeStamp $timestamp -OutPutDir $OutPutDir
           }
           if ($DEBUG -eq 1) {
-            write-host "[成功] $officeID \ $idPart -> 檔案已儲存" -ForegroundColor Green
+            Write-Host "[成功] $officeID \ $idPart -> 檔案已儲存" -ForegroundColor Green
           }
           $logList.Add("[成功] $officeID \ $idPart -> 檔案已儲存")
           $evtList.Clear()
@@ -1222,7 +1221,7 @@ Get-Content $inputFile | ForEach-Object {
       }
       else {
         if ($DEBUG -eq 1) {
-          write-host "[跳過] 檔案: $($evtPath) (Drive還沒失效)" -ForegroundColor Gray
+          Write-Host "[跳過] 檔案: $($evtPath) (Drive還沒失效)" -ForegroundColor Gray
         }
         $logList.Add("[跳過] 檔案: $($evtPath) (Drive還沒失效)")
         if ($DrvFailDetected -eq 1) {
@@ -1240,7 +1239,7 @@ Get-Content $inputFile | ForEach-Object {
       # 選項：可以顯示哪些檔案被忽略了
       if ($matchCount -gt 0) {
         if ($DEBUG -eq 1) {
-          write-host "[跳過] 檔案: $($evtPath) (僅 $matchCount 筆，未達門檻)" -ForegroundColor Gray
+          Write-Host "[跳過] 檔案: $($evtPath) (僅 $matchCount 筆，未達門檻)" -ForegroundColor Gray
         }
         $logList.Add("[跳過] 檔案: $($evtPath) (僅 $matchCount 筆，未達門檻)")
         $unprocessfileList.Add($evtPath)
@@ -1254,6 +1253,7 @@ Get-Content $inputFile | ForEach-Object {
   $RebuildSeq.Clear()
   $drvScanSeq.Clear()
   $debList.Clear()
+  $drvErrMatches.Clear()
 }
 
 # 3. 輸出總結報告
@@ -1261,12 +1261,12 @@ if ($summaryList.Count -gt 0) {
   $summaryList | Out-File -FilePath $resultFile -Encoding utf8
   if ($summary1List.Count -gt 0) {
     $summary1List | Out-File -FilePath $resultFile1 -Encoding utf8
-    write-host "`n[完成] 總結報告已存至: $summaryFile1" -ForegroundColor Green
-    write-host "[完成] 共處理了 $($summary1List.Count) 個包含錯誤的檔案。" -ForegroundColor Green
+    Write-Host "`n[完成] 總結報告已存至: $summaryFile1" -ForegroundColor Green
+    Write-Host "[完成] 共處理了 $($summary1List.Count) 個包含錯誤的檔案。" -ForegroundColor Green
   }
 }
 else {
-  write-host "`n未發現任何符合條件的檔案。" -ForegroundColor Yellow
+  Write-Host "`n未發現任何符合條件的檔案。" -ForegroundColor Yellow
 }
 
 if ($logList.Count -gt 0) {
@@ -1313,9 +1313,9 @@ if ($analysisResultList.Count -gt 0) {
     $analysisDisks | Format-Table -AutoSize | Out-File -FilePath $summaryFileTxt -Append -Encoding utf8
   }
   $summaryFileCSV = $summaryFile
-  Write-Ticket-Summary -cvsFilePath $summaryFileCSV -QmsDB $AllQMSTicketDB
+  Write-Ticket-Summary -csvFilePath $summaryFileCSV -QmsDB $AllQMSTicketDB
   $summaryFileCSV = $summaryFile + "_unfailure"
-  Write-Ticket-Summary -cvsFilePath $summaryFileCSV -QmsDB $AnalysisQMSTicketDB
+  Write-Ticket-Summary -csvFilePath $summaryFileCSV -QmsDB $AnalysisQMSTicketDB
   Write-Ticket-Summary-Readme
 }
 
@@ -1323,5 +1323,7 @@ $unprocessfileList | Out-File -FilePath "unprocessedfile.txt" -Encoding utf8
 $processfileList | Out-File -FilePath "processedfile.txt" -Encoding utf8
 $processMorefileList | Out-File -FilePath "processmorefile.txt" -Encoding utf8
 
-write-host "Total case: $($numOfDrvFailCase), Failed Drive before errors: $($numOfFailDrvBeforeErr), Failed Drive after errors: $($numOfFailDrvAfterErr),  Drive Failure but not fould: $($numOfFaidDrvNotFound), Drive analysis but not Fail: $($numOfDrvNotFailed)"
+Write-Host "Total case: $($numOfDrvFailCase), Failed Drive before errors: $($numOfFailDrvBeforeErr)"
+Write-Host "    Failed Drive after errors: $($numOfFailDrvAfterErr),  Drive Failure but not fould: $($numOfFaidDrvNotFound)"
+Write-Host "    Drive analysis but not Fail: $($numOfDrvNotFailed)"
 pause

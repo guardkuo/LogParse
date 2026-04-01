@@ -34,7 +34,7 @@ function Write-Ticket-Summary-Readme() {
   $excelPath = "summary" + $today + ".xlsx"
   $Readme | Export-Excel -Path $excelPath -WorksheetName "Readme" -AutoSize -BoldTopRow -FreezeTopRow   
 }
-function Write-Ticket-Summary($cvsFilePath, $QmsDB) {
+function Write-Ticket-Summary($csvFilePath, $QmsDB) {
   $AllDiskReport = New-Object System.Collections.Generic.List[PSCustomObject]
   # 透過 Select-Object 的自定義屬性，將外層資訊與內層 DiskList 合併
   foreach ($ticket in $QmsDB) {
@@ -70,13 +70,13 @@ function Write-Ticket-Summary($cvsFilePath, $QmsDB) {
       }
     }
   }
-  $cvsFile = $cvsFilePath + ".cvs"
+  $csvFile = $csvFilePath + ".csv"
   $AllDiskReport | Select-Object Model, QMS, ChassisSN, MaxRespTime, MaxTag, MaxIOTimeout, DiskID, LDID, VendorProduct, Revision, DiskSN, SizeGB, Failure, FailureReason, numOfBadSector, IgnorenumOfBadSector, LogLocation, Timestamp | 
-  Export-Csv -Path $cvsFile -NoTypeInformation -Encoding UTF8
+  Export-Csv -Path $csvFile -NoTypeInformation -Encoding UTF8
   $today = Get-Date -Format "yyyyMMdd"
   $excelPath = "summary" + $today + ".xlsx"
   $AllDiskReport | Select-Object Model, LogLocation, ChassisSN, MaxRespTime, MaxTag, MaxIOTimeout, DiskID, LDID, VendorProduct, Revision, DiskSN, SizeGB, Failure, FailureReason, numOfBadSector, IgnorenumOfBadSector, Timestamp | 
-  Export-Excel -Path $excelPath -WorksheetName $cvsFilePath -AutoSize -BoldTopRow -FreezeTopRow
+  Export-Excel -Path $excelPath -WorksheetName $csvFile -AutoSize -BoldTopRow -FreezeTopRow
 }
 
 function Backup-Log-Files($FileInfo, $SerialNumber, $BaseName, $TimeStamp, $OutPutDir) {
