@@ -36,7 +36,6 @@ function Get-Drive-Failure-Event($Disk, $ScsiId, $drvErrLog) {
           $Disk.numOfBadSector = Get-MaxValue -Value1 $MaxBadSector -Value2 $BadSector
           $Disk.FailureReason = Get-ErrorType -DrvEvent $drvEvent
         }
-        Write-Host("$($ScsiId): $($Disk.FailureReason)")
         if ($Disk.FailureReason -ne -2) {
           return $drvEvent
         }
@@ -589,11 +588,11 @@ Get-Content $inputFile | ForEach-Object {
       # 假設 $MediaErr_matches 是您從 Select-String 抓取出來的物件
       $sortedPatternMatchResult = Set-MediaErrorMap -MediaErrorData $MediaErr_matches
 
-      $parsedLogsObj = Build-ParseLog -MediaErrorData $MediaErr_matches
+      $parsedLogsObj = Build-ParseLog -MediaErrorData $MediaErr_matches -IssueTimestamp $qmsIssueTime
 
       $finalReport = Split-MediaError-Group -LogsObj $parsedLogsObj
 
-      $analysisReport = Resolve-MediaError-Timestamp -LogsObj $parsedLogsObj -DriveScanList $drvScanSeq -IssueTime $qmsIssueTime
+      $analysisReport = Resolve-MediaError-Timestamp -LogsObj $parsedLogsObj -DriveScanList $drvScanSeq
 
       # 最終排序：先按 ID 排，再按 Sector 數值排
       $sortedFinalReport = $finalReport | Sort-Object DriveID, SectorDec

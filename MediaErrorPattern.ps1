@@ -178,7 +178,7 @@ function Set-MediaErrorMap($MediaErrorData) {
   return $sortedPattern
 }
 
-function Build-ParseLog ($MediaErrorData) {
+function Build-ParseLog ($MediaErrorData, $IssueTimestamp) {
   # 1. 預處理：解析 Log 並轉為物件 (支援 64-bit Sector)
   $parsedLogs = $MediaErrorData | ForEach-Object {
     $line = $_.Line
@@ -207,7 +207,7 @@ function Build-ParseLog ($MediaErrorData) {
       }
     }
 
-    if ($null -ne $foundID -and $null -ne $foundTime) {
+    if ($null -ne $foundID -and $null -ne $foundTime -and ($IssueTimestamp - $foundTime).TotalDays -le $minAnalysisDaysBeforeIssued) {
       [PSCustomObject]@{
         ID        = $foundID
         SectorDec = $foundSector
@@ -295,7 +295,7 @@ function Build-Error-Event($Path, $OutPutLog, $ReportTimeStamp) {
   return
   
 }
-function Resolve-MediaError-Timestamp ($LogsObj, $DriveScanList, $IssueTime) {
+function Resolve-MediaError-Timestamp ($LogsObj, $DriveScanList) {
   $Report = New-Object System.Collections.Generic.List[PSCustomObject]
   $CurrentEventEntries = New-Object System.Collections.Generic.List[PSCustomObject]
   $groups = $LogsObj | Group-Object ID, GBZone
@@ -314,7 +314,7 @@ function Resolve-MediaError-Timestamp ($LogsObj, $DriveScanList, $IssueTime) {
           $foundId = $entry.ID
         }
       }
-      if (($null -eq $scanTime -or [Math]::Abs(($entry.Time - $scanTime).TotalMinutes) -lt 0) -and ($IssueTime - $entry.Time).TotalDays -le $minAnalysisDaysBeforeIssued) {
+      if (($null -eq $scanTime -or [Math]::Abs(($entry.Time - $scanTime).TotalMinutes) -lt 0)) {
         # 時間間隔判定：超過10 min 則分割
         if ($null -ne $lastTime -and [Math]::Abs(($entry.Time - $lastTime).TotalMinutes) -gt $minThreshhold) {
           if ($duplicated -eq 0) {
@@ -334,7 +334,7 @@ function Resolve-MediaError-Timestamp ($LogsObj, $DriveScanList, $IssueTime) {
         }
       }
     }
-    
+
     if ($CurrentEventEntries.Count -gt 0) {
       if ($duplicated -eq 0 ) {
         $Report += MediaErrorBadSector -Entries $CurrentEventEntries
