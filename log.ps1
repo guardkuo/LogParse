@@ -66,17 +66,18 @@ function Write-Ticket-Summary($csvFilePath, $QmsDB) {
           FailureReason        = $disk.FailureReason
           numOfBadSector       = $disk.numOfBadSector
           IgnorenumOfBadSector = $disk.IgnorenumOfBadSector
+          Elapsed = $disk.Elapsed
         })
       }
     }
   }
   $csvFile = $csvFilePath + ".csv"
-  $AllDiskReport | Select-Object Model, QMS, ChassisSN, MaxRespTime, MaxTag, MaxIOTimeout, DiskID, LDID, VendorProduct, Revision, DiskSN, SizeGB, Failure, FailureReason, numOfBadSector, IgnorenumOfBadSector, LogLocation, Timestamp | 
+  $AllDiskReport | Select-Object Model, QMS, ChassisSN, MaxRespTime, MaxTag, MaxIOTimeout, DiskID, LDID, VendorProduct, Revision, DiskSN, SizeGB, Failure, FailureReason, numOfBadSector, IgnorenumOfBadSector, LogLocation, Elapsed, Timestamp | 
   Export-Csv -Path $csvFile -NoTypeInformation -Encoding UTF8
   $today = Get-Date -Format "yyyyMMdd"
   $excelPath = "summary" + $today + ".xlsx"
-  $AllDiskReport | Select-Object Model, LogLocation, ChassisSN, MaxRespTime, MaxTag, MaxIOTimeout, DiskID, LDID, VendorProduct, Revision, DiskSN, SizeGB, Failure, FailureReason, numOfBadSector, IgnorenumOfBadSector, Timestamp | 
-  Export-Excel -Path $excelPath -WorksheetName $csvFile -AutoSize -BoldTopRow -FreezeTopRow
+  $AllDiskReport | Select-Object Model, LogLocation, ChassisSN, MaxRespTime, MaxTag, MaxIOTimeout, DiskID, LDID, VendorProduct, Revision, DiskSN, SizeGB, Failure, FailureReason, numOfBadSector, IgnorenumOfBadSector, Timestamp, Elapsed | 
+  Export-Excel -Path $excelPath -WorksheetName $csvFilePath -AutoSize -BoldTopRow -FreezeTopRow
 }
 
 function Backup-Log-Files($FileInfo, $SerialNumber, $BaseName, $TimeStamp, $OutPutDir) {

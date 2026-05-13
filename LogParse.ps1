@@ -186,6 +186,7 @@ function Get-DiskMap($configPath) {
           FailureReason        = -1
           numOfBadSector       = 0
           IgnorenumOfBadSector = 0
+          Elapsed              = 0
         })
     }
   }
@@ -410,8 +411,8 @@ function Get-DrvFailure-Reason($FailureEvent, $ScsiId) {
       if ($foundID -eq $ScsiId) {
         $reason = 2
       }
-    } else 
-    {
+    }
+    else {
       # Drive Channel - Chl(8) Id(122) Device is missing, Reason(8h)
       # Drive Channel - Chl(12) Id(23) srb(00000000h) Information Aborted I/O is submitted to the hardware
       if ($FailureEvent -match 'Drive Channel - Chl\((?<CHL>\d+)\) Id\((?<ID>\d+)\)') {
@@ -490,6 +491,8 @@ $analysisResultList = New-Object System.Collections.Generic.List[string]
 $workingReport = New-Object System.Collections.Generic.List[PSCustomObject]
 $sortingReport = New-Object System.Collections.Generic.List[PSCustomObject]
 $numOfDrvFailCase = 0
+$numOfDrvNotFailed = 0
+$numOfFaidDrvNotFound = 0
 $numOfFailDrvBeforeErr = 0
 $numOfFailDrvAfterErr = 0
 
@@ -745,6 +748,14 @@ Get-Content $inputFile | ForEach-Object {
               if ($rebuilding -eq 1) {
                 $CurrDisk.IgnorenumOfBadSector++
               }
+              else {
+                $CurrDisk.numOfBadSector++
+              }
+               if ($_.Elapsed -ne 0) {
+                 $CurrDisk.Elapsed = $_.Elapsed
+                 # force to analyze
+                 # Don't override BadSector count, just note that elapsed time is present
+               }
             }
             else {
               $errorlogList.Add("$($officeID): 找不到 SCSI ID:$($ScsiId)。")
@@ -760,7 +771,7 @@ Get-Content $inputFile | ForEach-Object {
               }
               # parse current disk
 
-              if ($BadSector -le $MaxNumOfBadSectors -and $BadSector -gt $DefMinNumOfBadSector -and $DriveIsFailed -eq 0) {
+              if ($BadSector -le $MaxNumOfBadSectors -and $BadSector -ge $DefMinNumOfBadSector -and $DriveIsFailed -eq 0) {
                 if ($null -ne $CurrDisk) {
                   if ($CurrDisk.ID -ne $ScsiId) {
                     $errorlogList.Add("$($officeID): SCSI ID $($CurrDisk.ID) 和目前使用的 ID $($ScsiId) 不同。")
@@ -805,6 +816,9 @@ Get-Content $inputFile | ForEach-Object {
                 Add-SectorToList -List $workingReport -DriveID $_.DriveID -GBZone $_.StartGB -Time $_.StartTime
                 $LDID = $CurrDisk.LDID
                 $lastTime = $_.StartTime
+                if ($_.Elapsed -ne 0) {
+                  $CurrDisk.Elapsed = $_.Elapsed
+                }
               }
               else {
                 $errorlogList.Add("$($officeID): 找不到 SCSI ID:$($ScsiId)。")
@@ -902,7 +916,7 @@ Get-Content $inputFile | ForEach-Object {
                 }
               }
               else {
-                if ($BadSector -le $MaxNumOfBadSectors -and $BadSector -gt $DefMinNumOfBadSector -and $DriveIsFailed -eq 0) {
+                if ($BadSector -le $MaxNumOfBadSectors -and $BadSector -ge $DefMinNumOfBadSector -and $DriveIsFailed -eq 0) {
                   $drvEvent = Get-Drive-Failure-Event -Disk $CurrDisk -ScsiId $ScsiId -drvErrLog $drvErrMatches
                   if ($null -ne $drvEvent) {
                     if ($numOfDrvFail -eq 0) {
@@ -926,6 +940,9 @@ Get-Content $inputFile | ForEach-Object {
                   $LDID = $CurrDisk.LDID
                   $lastTime = $_.StartTime
                   $DriveIsFailed = 0
+                  if ($_.Elapsed -ne 0) {
+                    $CurrDisk.Elapsed = $_.Elapsed
+                  }
                 }
                 else {
                   $ScsiId = -1
@@ -1064,7 +1081,7 @@ Get-Content $inputFile | ForEach-Object {
           }
         }
       }
-      if ($BadSector -le $MaxNumOfBadSectors -and $BadSector -gt $DefMinNumOfBadSector -and $DriveIsFailed -eq 0) {
+      if ($BadSector -le $MaxNumOfBadSectors -and $BadSector -ge $DefMinNumOfBadSector -and $DriveIsFailed -eq 0) {
         $CurrDisk = Get-DiskInMap -DisksList $StorageConfig.DiskList -ScsiId $ScsiId
         if ($null -ne $CurrDisk) {
           $drvEvent = Get-Drive-Failure-Event -Disk $CurrDisk -ScsiId $ScsiId -drvErrLog $drvErrMatches
@@ -1134,9 +1151,9 @@ Get-Content $inputFile | ForEach-Object {
 
       # 儲存與輸出至 xxx_mediaerror.txt
       $MediaErrorSectReportOutput | Out-File -FilePath $patternMatchOutPath -Encoding UTF8
-      $sortedFinalReport | Select-Object DriveID, StartSector, GB_Zone, ErrorCount, StartTime, EndTime, Duration | Format-Table -AutoSize |
+      $sortedFinalReport | Select-Object DriveID, StartSector, GB_Zone, ErrorCount, StartTime, EndTime, Duration, Elapsed | Format-Table -AutoSize |
       Out-File -FilePath $patternMatchOutPath -Append -Encoding utf8
-      $sortedFinalAnalysisReport | Select-Object DriveID, StartSector, GB_Zone, ErrorCount, StartTime, EndTime, Duration | Format-Table -AutoSize |
+      $sortedFinalAnalysisReport | Select-Object DriveID, StartSector, GB_Zone, ErrorCount, StartTime, EndTime, Duration, Elapsed | Format-Table -AutoSize |
       Out-File -FilePath $patternMatchOutPath -Append -Encoding utf8
       $sortedDrvFailMatchResult.Line  | Out-File -FilePath $patternMatchOutPath -Append -Encoding utf8
 
@@ -1151,7 +1168,7 @@ Get-Content $inputFile | ForEach-Object {
       $csvFilePath = Join-Path $OutPutDir $csvFileName
 
       # 將結果選取需要的欄位並匯出
-      $sortedFinalReport | Select-Object DriveID, StartSector, GB_Zone, ErrorCount, StartTime, EndTime, Duration | 
+      $sortedFinalReport | Select-Object DriveID, StartSector, GB_Zone, ErrorCount, StartTime, EndTime, Duration, Elapsed | 
       Export-Csv -Path $csvFilePath -NoTypeInformation -Encoding UTF8
 
       if ($DEBUG -eq 1) {

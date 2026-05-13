@@ -31,7 +31,7 @@ foreach ($file in $Folder) {
   # 檢查是否有結果並寫入檔案
   if ($results) {
     $results | Out-File -FilePath $outputFile -Append -Encoding utf8
-    write-host "Search is finished！Find $($results.Count) fiies" -ForegroundColor Green
+    write-host "Search $($file) is finished！Find $($results.Count) files" -ForegroundColor Green
     write-host "Results are saved to: $outputFile" -ForegroundColor Green
   }
   else {
