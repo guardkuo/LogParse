@@ -237,21 +237,22 @@ function Split-MediaError-Group ($LogsObj) {
   $Report = New-Object System.Collections.Generic.List[PSCustomObject]
   $CurrentEventEntries = New-Object System.Collections.Generic.List[PSCustomObject]
   $groups = $LogsObj | Group-Object ID, GBZone
-  $elapsed = 0
 
   foreach ($g in $groups) {
     # 區域內按 Sector 排序，確保分析連續性
     $sortedEntries = $g.Group | Sort-Object StartGB, Time
     $CurrentEventEntries.Clear()
     $lastTime = $null
+    $elapsed = 0
     foreach ($entry in $sortedEntries) {
       # 時間間隔判定：超過10 min 則分割
-      $elapsed += $entry.Elapsed
       if ($null -ne $lastTime -and [Math]::Abs(($entry.Time - $lastTime).TotalMinutes) -gt $minThreshhold) {
         $Report += MediaErrorBadSector -Entries $CurrentEventEntries -Spend $elapsed
         $CurrentEventEntries.Clear()
         $lastTime = $entry.Time
-        $elapsed = 0
+        $elapsed = $entry.Elapsed
+      } else {
+        $elapsed += $entry.Elapsed
       }
       $CurrentEventEntries.Add($entry)
       if ($null -eq $lastTime) {
@@ -330,7 +331,7 @@ function Resolve-MediaError-Timestamp ($LogsObj, $DriveScanList) {
           $foundId = $entry.ID
         }
       }
-      $elapsed += $entry.Elapsed
+      
       if (($null -eq $scanTime -or [Math]::Abs(($entry.Time - $scanTime).TotalMinutes) -lt 0)) {
         # 時間間隔判定：超過10 min 則分割
         if ($null -ne $lastTime -and [Math]::Abs(($entry.Time - $lastTime).TotalMinutes) -gt $minThreshhold) {
@@ -340,9 +341,11 @@ function Resolve-MediaError-Timestamp ($LogsObj, $DriveScanList) {
           else {
             $duplicated = 0
           }
-          $elapsed = 0
+          $elapsed = $entry.Elapsed
           $CurrentEventEntries.Clear()
           $lastTime = $entry.Time
+        } else {
+          $elapsed += $entry.Elapsed
         }
         $CurrentEventEntries.Add($entry)
 
