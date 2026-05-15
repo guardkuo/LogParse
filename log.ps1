@@ -108,3 +108,34 @@ function Backup-Log-Files($FileInfo, $SerialNumber, $BaseName, $TimeStamp, $OutP
   }
 
 }
+
+function LogMediaErrorEvent($QMS, $MediaErrorEvent, $Storage, $OutFile) {
+    $AllMeidaErorReport = New-Object System.Collections.Generic.List[PSCustomObject]
+    $MediaErrorEvent | ForEach-Object {
+        $found = 0
+        foreach ($item in $AllMeidaErorReport) {
+            if ($item.ID -eq $_.ID) {
+                $found = 1
+                break
+            }
+        }
+        if ($found -eq 0) {
+            $currDisk = Get-DiskInMap -DisksList $Storage.DiskList -ScsiId $_.ID
+            if ($null -ne $currDisk) {
+                $AllMeidaErorReport.Add([PSCustomObject]@{
+                # Disk 詳細資訊
+                Ticket           = $QMS
+                ID               = $currDisk.ID
+                VendorProduct    = $currDisk.VendorProduct
+                Revision         = $currDisk.Revision
+                DiskSN           = $currDisk.SerialNumber
+                })
+            }
+        }
+
+    }
+    $AllMeidaErorReport | Select-Object Ticket, ID, VendorProduct, Revision, DiskSN | Format-Table -AutoSize |
+      Out-File -FilePath $OutFile -Append -Encoding utf8
+    $MediaErrorEvent | Select-Object ID, SectorHex, GBZone, Time, Elapsed, AdjElapsed | Format-Table -AutoSize |
+      Out-File -FilePath $OutFile -Append -Encoding utf8
+}

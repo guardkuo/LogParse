@@ -180,6 +180,7 @@ function Set-MediaErrorMap($MediaErrorData) {
 }
 
 function Build-ParseLog ($MediaErrorData, $IssueTimestamp) {
+  $PrevfoundTime = $null
   # 1. 預處理：解析 Log 並轉為物件 (支援 64-bit Sector)
   $parsedLogs = $MediaErrorData | ForEach-Object {
     $line = $_.Line
@@ -219,6 +220,14 @@ function Build-ParseLog ($MediaErrorData, $IssueTimestamp) {
     }
 
     if ($null -ne $foundID -and $null -ne $foundTime -and ($IssueTimestamp - $foundTime).TotalDays -le $minAnalysisDaysBeforeIssued) {
+      if ($null -ne $PrevfoundTime) {
+          $adjElapsed = [int64]($foundTime - $PrevfoundTime).TotalSeconds
+          if ($adjElapsed -gt $elapsed) {
+            $adjElapsed = $elapsed
+          }
+      } else {
+          $adjElapsed = $elapsed
+      }
       [PSCustomObject]@{
         ID        = $foundID
         SectorDec = $foundSector
@@ -227,7 +236,9 @@ function Build-ParseLog ($MediaErrorData, $IssueTimestamp) {
         Time      = $foundTime
         Elapsed   = $elapsed
         RawLine   = $line
+        AdjElapsed = $adjElapsed
       }
+      $PrevfoundTime = $foundTime
     }
   }
   return $parsedLogs

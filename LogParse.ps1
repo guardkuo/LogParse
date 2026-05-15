@@ -187,6 +187,7 @@ function Get-DiskMap($configPath) {
           numOfBadSector       = 0
           IgnorenumOfBadSector = 0
           Elapsed              = 0
+          AdjElapsed           = 0
         })
     }
   }
@@ -523,7 +524,6 @@ Get-Content $inputFile | ForEach-Object {
     $DrvFailDetected = 0
     $LogDirection = Split-Path -Path $evtPath -Parent
     
-        
     if ($matchCount -ge $minMatchCount) {
       $qmsIssueTime = $fileInfo.CreationTime
       $timestamp = $fileInfo.CreationTime.ToString("yyyyMMdd_HHmmss")
@@ -532,7 +532,6 @@ Get-Content $inputFile | ForEach-Object {
       $configfileName = "$idPart$conf.txt"
       # 1. 設定檔案路徑
       $configfilePath = Join-Path $fileInfo.DirectoryName $configfileName
- 
       if (-not (Test-Path $configFilePath)) {
         $configfileName = "config.txt"
         $configfilePath = Join-Path $fileInfo.DirectoryName $configfileName
@@ -662,7 +661,6 @@ Get-Content $inputFile | ForEach-Object {
           Copy-Item -Path $configfilePath -Destination (Join-Path $OutPutDir "${idPart}_config_${timestamp}.xml") -Force
         }
       }
-
       $MediaErrorSectReportOutput = Save-MediaErrorSect-Report -Report $finalReport -DiskMap $DiskMap -IssueTime $qmsIssueTime
       # --- 處理個別錯誤檔案 (完整結果) ---
       $debFileName = "$idPart.deb.0.5.full.txt"
@@ -724,6 +722,7 @@ Get-Content $inputFile | ForEach-Object {
       $numOfAnalysisDrv = 0
       $lastTime = $null
       $DoMore = 0
+      $SupportElapsed = 0
       if ([int]$StorageConfig.maxTag -gt 8) {
         $MaxNumOfBadSectors = [int]$StorageConfig.maxTag + 1
       }
@@ -751,11 +750,10 @@ Get-Content $inputFile | ForEach-Object {
               else {
                 $CurrDisk.numOfBadSector++
               }
-               if ($_.Elapsed -ne 0) {
-                 $CurrDisk.Elapsed = $_.Elapsed
-                 # force to analyze
-                 # Don't override BadSector count, just note that elapsed time is present
-               }
+              if ($_.Elapsed -ne 0) {
+                $CurrDisk.Elapsed = $_.Elapsed
+                $SupportElapsed = 1
+              }
             }
             else {
               $errorlogList.Add("$($officeID): 找不到 SCSI ID:$($ScsiId)。")
@@ -818,6 +816,7 @@ Get-Content $inputFile | ForEach-Object {
                 $lastTime = $_.StartTime
                 if ($_.Elapsed -ne 0) {
                   $CurrDisk.Elapsed = $_.Elapsed
+                  $SupportElapsed = 1
                 }
               }
               else {
@@ -942,6 +941,7 @@ Get-Content $inputFile | ForEach-Object {
                   $DriveIsFailed = 0
                   if ($_.Elapsed -ne 0) {
                     $CurrDisk.Elapsed = $_.Elapsed
+                    $SupportElapsed = 1
                   }
                 }
                 else {
@@ -1151,6 +1151,8 @@ Get-Content $inputFile | ForEach-Object {
 
       # 儲存與輸出至 xxx_mediaerror.txt
       $MediaErrorSectReportOutput | Out-File -FilePath $patternMatchOutPath -Encoding UTF8
+      $parsedLogsObj | Select-Object ID, SectorHex, GBZone, Time, Elapsed, AdjElapsed | Format-Table -AutoSize |
+      Out-File -FilePath $patternMatchOutPath -Append -Encoding utf8
       $sortedFinalReport | Select-Object DriveID, StartSector, GB_Zone, ErrorCount, StartTime, EndTime, Duration, Elapsed | Format-Table -AutoSize |
       Out-File -FilePath $patternMatchOutPath -Append -Encoding utf8
       $sortedFinalAnalysisReport | Select-Object DriveID, StartSector, GB_Zone, ErrorCount, StartTime, EndTime, Duration, Elapsed | Format-Table -AutoSize |
@@ -1163,6 +1165,11 @@ Get-Content $inputFile | ForEach-Object {
       $sortedPatternMatchResult.Line | Out-File -FilePath $patternMatchOutPath -Append -Encoding utf8
       $StorageConfig.MaxRespTime | Out-File -FilePath $patternMatchOutPath -Append -Encoding utf8
       $StorageConfig.DiskList | Format-Table -AutoSize | Out-File -FilePath $patternMatchOutPath -Append -Encoding utf8
+
+      # Output media error log if it has elapsed time
+      if ($SupportElapsed -eq 1) {
+        LogMediaErrorEvent -QMS $officeID -MediaErrorEvent $parsedLogsObj -Storage $StorageConfig -OutFile $mediaErrorSummaryFile
+      }
       # 定義檔名
       $csvFileName = "Disk_Error_Report_${baseName}_${timestamp}.csv"
       $csvFilePath = Join-Path $OutPutDir $csvFileName
