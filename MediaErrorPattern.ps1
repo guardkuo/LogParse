@@ -1,4 +1,4 @@
-$MEDIRERROR_DEBUG = 0
+﻿$MEDIRERROR_DEBUG = 0
 #220A0148: Drive fail
 #220A0188: Drive Failure
 #020AA182: clone
@@ -13,7 +13,7 @@ $MEDIRERROR_DEBUG = 0
 #21080282: Gross Phase/Signal Error Detected
 #22081882: CHL:12 ID:4 (JBODId:0 SlotNum:5)  Drive ERROR: Aborted Command (0B/4B/04)
 #020A8305: Rebuild
-#12084203: SMART-CH 12 ID:552 Drive Event Detected 
+#12084203: SMART-CH 12 ID:552 Drive Event Detected
 #020A8304: ID:6C48F804 Logical Drive INFORM: Starting Rebuild
 #020A8402: ID:6C48F804 Logical Drive INFORM: Rebuild of Logical Drive Completed
 #22080541: CHL:12 ID:206 (JBODId:3 SlotNum:27)  Target ERROR: Timeout Waiting for I/O to Complete
@@ -63,7 +63,7 @@ $keywords2 = @("220A0787", "320A4509", "22084202", "220A1182", "020AA142", "020A
 
 $LDRebuild = $LDRebuildCmplt + $LDRebuildStart
 # Drive Channel - Chl(8) Id(122) Device is missing, Reason(8h)
-# Drive ChlNo:21 ID:0 High latency detected(op: 2a, last request latency:1394ms, request amount:7 
+# Drive ChlNo:21 ID:0 High latency detected(op: 2a, last request latency:1394ms, request amount:7
 #$debkeywords = @("latency", "M62:", "Drive Channel")
 $debkeywords = @("M62:", "Drive Channel")
 $DrvErrKeywords = $keywords1
@@ -205,7 +205,7 @@ function Build-ParseLog ($MediaErrorData, $IssueTimestamp) {
         $foundSector = [Convert]::ToInt64($Matches['Hex'], 16)
       }
       catch {
-        $foundSector = 0 
+        $foundSector = 0
       }
     }
 
@@ -215,7 +215,7 @@ function Build-ParseLog ($MediaErrorData, $IssueTimestamp) {
         $elapsed = [int64]$Matches['Sec']
       }
       catch {
-        $elapsed = 0 
+        $elapsed = 0
       }
     }
 
@@ -270,7 +270,7 @@ function Split-MediaError-Group ($LogsObj) {
         $lastTime = $entry.Time
       }
     }
-    
+
     if ($CurrentEventEntries.Count -gt 0) {
       $Report += MediaErrorBadSector -Entries $CurrentEventEntries -Spend $elapsed
     }
@@ -278,11 +278,11 @@ function Split-MediaError-Group ($LogsObj) {
 
 
   if ($MEDIRERROR_DEBUG -eq 1 ) {
-    Write-Host "`n[統計摘要]" -ForegroundColor Cyan
-    Write-Host "總受損 GB 區域數: " ($groups.Count)
-    Write-Host "總事件處理數 (跨週分割): " ($Report.Count) -ForegroundColor Yellow
+    Write-Verbose "`n[統計摘要]"
+    Write-Verbose "總受損 GB 區域數: " ($groups.Count)
+    Write-Verbose "總事件處理數 (跨週分割): " ($Report.Count)
     $Report | Sort-Object DriveID, SectorDec | Select-Object DriveID, StartSector, GB_Zone, ErrorCount, StartTime, EndTime, Duration, Elapsed | Format-Table -AutoSize
-  }     
+  }
   return $Report
 }
 
@@ -320,7 +320,7 @@ function Build-Error-Event($Path, $OutPutLog, $ReportTimeStamp) {
     }
   }
   return
-  
+
 }
 function Resolve-MediaError-Timestamp ($LogsObj, $DriveScanList) {
   $Report = New-Object System.Collections.Generic.List[PSCustomObject]
@@ -342,7 +342,7 @@ function Resolve-MediaError-Timestamp ($LogsObj, $DriveScanList) {
           $foundId = $entry.ID
         }
       }
-      
+
       if (($null -eq $scanTime -or [Math]::Abs(($entry.Time - $scanTime).TotalMinutes) -lt 0)) {
         # 時間間隔判定：超過10 min 則分割
         if ($null -ne $lastTime -and [Math]::Abs(($entry.Time - $lastTime).TotalMinutes) -gt $minThreshhold) {
@@ -375,11 +375,11 @@ function Resolve-MediaError-Timestamp ($LogsObj, $DriveScanList) {
 
 
   if ($MEDIRERROR_DEBUG -eq 1 ) {
-    Write-Host "`n[統計摘要]" -ForegroundColor Cyan
-    Write-Host "總受損 GB 區域數: " ($groups.Count)
-    Write-Host "總事件處理數 (跨週分割): " ($Report.Count) -ForegroundColor Yellow
+    Write-Verbose "`n[統計摘要]"
+    Write-Verbose "總受損 GB 區域數: " ($groups.Count)
+    Write-Verbose "總事件處理數 (跨週分割): " ($Report.Count)
     $Report | Format-Table -AutoSize
-  }     
+  }
   return $Report
 }
 
@@ -402,13 +402,13 @@ function Save-MediaErrorSect-Report($Report, $DiskMap, $IssueTime) {
     if ($currentVendor) {
       $reportOutput.Add($currentVendor)
     }
-    
+
     # 格式化該 ID 下的事件清單
     $table = $driveGroup.Group | Select-Object StartSector, GB_Zone, ErrorCount, StartTime, EndTime, Duration | Format-Table -AutoSize | Out-String
     $reportOutput.Add($table)
     $reportOutput.Add("") # 空行隔開不同 ID
   }
-      
+
   return $reportOutput
 }
 
@@ -441,8 +441,8 @@ function Get-ErrorType($DrvEvent) {
   }
   if ($DrvEvent -match $HWErrorPattern) {
     return 4
-  } 
+  }
 
   return -2
- 
+
 }

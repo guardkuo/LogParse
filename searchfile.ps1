@@ -1,4 +1,4 @@
-$DEBUG = 0
+﻿$DEBUG = 0
 # --- 設定搜尋條件 (根據需求修改) ---
 $targetFolder = "\\tsd-server\RD-Share\"          # 搜尋起點： "." 代表目前目錄
 $fileNamePattern = "*.evt.0.5.full.txt"           # 檔名關鍵字： 例如 "report*" 或 "*" (找全部)
@@ -12,18 +12,18 @@ $Folder = @("Japan-office", "Pan-asia-office", "CN", "EU", "USA_office")
 $dateThreshold = (Get-Date).AddDays(-$daysAgo)
 $today = Get-Date -Format "yyyyMMdd"
 
-write-host "Searching, please wait..." -ForegroundColor Cyan
+Write-Verbose "Searching, please wait..."
 $outputFile = $outputFile + "_" + $today + ".txt"
 foreach ($file in $Folder) {
   $searchFolder = Join-Path $targetFolder $file
   if ($DEBUG -eq 1) {
-    write-host "$($searchFolder)"
+    Write-Verbose "$($searchFolder)"
   }
- 
-  $results = Get-ChildItem -Path $searchFolder -Filter $fileNamePattern -Recurse -ErrorAction SilentlyContinue | 
-  Where-Object { 
-    !$_.PSIsContainer -and 
-    $_.Length -ge ($minSizeMB * 1MB) -and 
+
+  $results = Get-ChildItem -Path $searchFolder -Filter $fileNamePattern -Recurse -ErrorAction SilentlyContinue |
+  Where-Object {
+    !$_.PSIsContainer -and
+    $_.Length -ge ($minSizeMB * 1MB) -and
     ($daysAgo -eq 0 -or $_.LastWriteTime -ge $dateThreshold)
   } |
   Select-Object -ExpandProperty FullName
@@ -31,11 +31,11 @@ foreach ($file in $Folder) {
   # 檢查是否有結果並寫入檔案
   if ($results) {
     $results | Out-File -FilePath $outputFile -Append -Encoding utf8
-    write-host "Search $($file) is finished！Find $($results.Count) files" -ForegroundColor Green
-    write-host "Results are saved to: $outputFile" -ForegroundColor Green
+    Write-Verbose "Search $($file) is finished！Find $($results.Count) files"
+    Write-Verbose "Results are saved to: $outputFile"
   }
   else {
-    write-host "No File is found。" -ForegroundColor Red
+    Write-Verbose "No File is found。"
   }
 }
 

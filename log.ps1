@@ -1,4 +1,4 @@
-function Write-Ticket-Title($LogList, $Qms, $SerialNumber, $StorageConf) {
+﻿function Write-Ticket-Title($LogList, $Qms, $SerialNumber, $StorageConf) {
   $LogList.Add("QMS: $Qms SerialNumber: $SerialNumber")
   $LogList.Add("  Maximum Drive Response Timeout: $($StorageConf.maxRespTime)")
   $LogList.Add("  Maximum Tag Count: $($StorageConf.maxTag)")
@@ -32,7 +32,7 @@ $Readme = @(
 function Write-Ticket-Summary-Readme() {
   $today = Get-Date -Format "yyyyMMdd"
   $excelPath = "summary" + $today + ".xlsx"
-  $Readme | Export-Excel -Path $excelPath -WorksheetName "Readme" -AutoSize -BoldTopRow -FreezeTopRow   
+  $Readme | Export-Excel -Path $excelPath -WorksheetName "Readme" -AutoSize -BoldTopRow -FreezeTopRow
 }
 function Write-Ticket-Summary($csvFilePath, $QmsDB) {
   $AllDiskReport = New-Object System.Collections.Generic.List[PSCustomObject]
@@ -72,15 +72,15 @@ function Write-Ticket-Summary($csvFilePath, $QmsDB) {
     }
   }
   $csvFile = $csvFilePath + ".csv"
-  $AllDiskReport | Select-Object Model, QMS, ChassisSN, MaxRespTime, MaxTag, MaxIOTimeout, DiskID, LDID, VendorProduct, Revision, DiskSN, SizeGB, Failure, FailureReason, numOfBadSector, IgnorenumOfBadSector, LogLocation, Elapsed, Timestamp | 
+  $AllDiskReport | Select-Object Model, QMS, ChassisSN, MaxRespTime, MaxTag, MaxIOTimeout, DiskID, LDID, VendorProduct, Revision, DiskSN, SizeGB, Failure, FailureReason, numOfBadSector, IgnorenumOfBadSector, LogLocation, Elapsed, Timestamp |
   Export-Csv -Path $csvFile -NoTypeInformation -Encoding UTF8
   $today = Get-Date -Format "yyyyMMdd"
   $excelPath = "summary" + $today + ".xlsx"
-  $AllDiskReport | Select-Object Model, LogLocation, ChassisSN, MaxRespTime, MaxTag, MaxIOTimeout, DiskID, LDID, VendorProduct, Revision, DiskSN, SizeGB, Failure, FailureReason, numOfBadSector, IgnorenumOfBadSector, Timestamp, Elapsed | 
+  $AllDiskReport | Select-Object Model, LogLocation, ChassisSN, MaxRespTime, MaxTag, MaxIOTimeout, DiskID, LDID, VendorProduct, Revision, DiskSN, SizeGB, Failure, FailureReason, numOfBadSector, IgnorenumOfBadSector, Timestamp, Elapsed |
   Export-Excel -Path $excelPath -WorksheetName $csvFilePath -AutoSize -BoldTopRow -FreezeTopRow
 }
 
-function Backup-Log-Files($FileInfo, $SerialNumber, $BaseName, $TimeStamp, $OutPutDir) {
+function Backup-Log-File($FileInfo, $SerialNumber, $BaseName, $TimeStamp, $OutPutDir) {
   # deb
   if (-not (Test-Path $OutPutDir)) {
     return
