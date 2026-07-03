@@ -16,8 +16,8 @@ $fileNamePattern = "*.a.3"           # 檔名關鍵字： 例如 "report*" 或 "
 # [0-9A-F]{2} 代表中間1 or 2碼為十六進位
 # /            代表斜線
 # \d{2}        代表最後2碼為純數字 (等同於 [0-9]{2})
-$diskPattern = '^[0-9A-F]{3}\s+[0-9A-F]{1,2}/\d{2}'
-
+#$diskPattern = '^[0-9A-F]{3}\s+[0-9A-F]{1,2}/\d{2}|Seconds'
+$diskPattern = '^(?:[0-9A-F]{3}\s+\S+\s+\d{2}.*)|(?:\[\d{2}\s+\d{2}:\d{2}:\d{2}\][0-9A-F]{8}.*)'
 #_PD_   Slot_LD    R_MB/s__IO/s___ms/io____max  W_MB/s__IO/s___ms/io____max   _seek___(max)  idle qd S% B%
 #000 FF/01 00     1.2     3      1.81    2.3     0.0     0    0.00    0.0    1.31    1.62  997   1
 # Index
@@ -39,51 +39,127 @@ $QD = 14
 
 
 # Compare rule
+# We can adjust these values to analyze the different cases
 $LongReadLatency = 90
 $LongWriteLatency = 0
-$numOfMatched = 0
-$numOfMatchedInSystem = 0
 
+
+# If more than `$maxOfGroupHighLatency` HDDs exhibit high latency within the same time slot, we assume the issue lies with the system—for example, the CPU being overloaded.
+$maxOfGroupHighLatency = 3
+function Update-Slot-Statistics ($DiskSlotMap, $Id, $Num) {
+  foreach ($Disk in $DiskSlotMap) {
+    if ($Disk.Id -eq $Id) {
+      $Disk.HighLatency += $Num
+      return $null
+    }
+  }
+  $NewDisk = [PSCustomObject]@{
+    Id          = $Id
+    HighLatency = $Num
+  }
+  $DiskSlotMap.Add($NewDisk)
+}
+
+function Merge-New-Statistics-Maps($DiskSlotMap, $NewDiskSlotMap) {
+  foreach ($Disk in $NewDiskSlotMap) {
+    Update-Slot-Statistics -DiskSlotMap $DiskSlotMap -Id $Disk.Id -Num $Disk.HighLatency
+  }
+}
+
+function Dump-Slot-Statistics ($DiskSlotMap) {
+
+  $NewMap = $DiskSlotMap | Sort-Object ID
+  foreach ($Disk in $NewMap) {
+    Write-Host "$($Disk.ID): $($Disk.HighLatency)"
+  }
+}
+
+$StatisticsOfSlot = New-Object System.Collections.Generic.List[PSCustomObject]
+$CurrStatisticsOfSlot = New-Object System.Collections.Generic.List[PSCustomObject]
+$numOfMatched = 0
 # Main function starts
 
 $logList = New-Object System.Collections.Generic.List[string]
-
 foreach ($folder in $targetFolderList) {
-  $results = Get-ChildItem -Path $folder -Filter $fileNamePattern -Recurse -ErrorAction SilentlyContinue |
+  $results = Get-ChildItem -Path $folder -Filter $fileNamePattern -ErrorAction SilentlyContinue |
   Where-Object {
     !$_.PSIsContainer -and
     $_.Length -ge 0
   } |
   Select-Object -ExpandProperty FullName
+  $CurrentTimeStr = ""
+  $NumOfGroupLatency = 0
 
-  $numOfMatchedInSystem = 0
-  foreach ($dhioFile in $results) {
-    Write-Host "$($dhioFile)"
-    $matchesDisk = Select-String -Path $dhioFile -Pattern $diskPattern
+  try {
+    foreach ($dhioFile in $results) {
+      Write-Host "$($dhioFile)"
+      $matchesDisk = Select-String -Path $dhioFile -Pattern $diskPattern
+      if (-not $matchesDisk) {
+        Write-Warning "No patterns found in $($dhioFile). Potential log format change."
+        # Optionally, Add this warning to the $logList for manual review later.
+        continue
+      }
+      $numOfMatchedInSystem = 0
+      $NumOfGroupLatency = 0
+      # 輸出找到的結果
 
-    # 輸出找到的結果
-    foreach ($match in $matchesDisk) {
-      $diskBlocks = $match.Line -split '\s+'
-      # JBOD and slot number
-      #$diskSlot = $diskBlocks[$SLOT] -split '/'
-      # diskSlot[0] - JBOD, 0 or FF is RAID, others are JBOD ID
-      # diskSlot[1] - slot number
-      # Get Long latency
-      if (([float]$diskBlocks[$Rmax] -ge $LongReadLatency) -or ($LongWriteLatency -ne 0 -and [float]$diskBlocks[$Wmax] -ge $LongWriteLatency)) {
-        if ($numOfMatchedInSystem -eq 0) {
-          $logList.Add($dhioFile)
-          $logList.Add("_PD_Slot_LD  R_MB/s__IO/s___ms/io____max  W_MB/s__IO/s___ms/io____max   _seek___(max)  idle qd S% B%")
+      foreach ($match in $matchesDisk) {
+        $diskBlocks = $match.Line -split '\s+'
+
+        if ($diskBlocks.Count -le 3) {
+          Write-Warning("Count < 3, Log format is wrong, $($match.Line)")
+          continue
         }
-        $logList.Add($match.Line)
-        Write-Host "$($match.Line)"
-        $numOfMatched++
-        $numOfMatchedInSystem++
+        if ($diskBlocks[3] -eq "Seconds") {
+          $CurrentTimeStr = $match.Line
+          if ($NumOfGroupLatency -ne 0 -and $NumOfGroupLatency -le $maxOfGroupHighLatency) {
+            Merge-New-Statistics-Maps -DiskSlotMap $StatisticsOfSlot -NewDiskSlotMap $CurrStatisticsOfSlot
+          }
+          $CurrStatisticsOfSlot.Clear()
+          $NumOfGroupLatency = 0
+          continue;
+        }
+        if ($diskBlocks.Count -le $Wmax) {
+          Write-Warning("Log format is wrong, $($match.Line)")
+          continue
+        }
+
+        # JBOD and slot number
+        # $diskSlot = $diskBlocks[$SLOT] -split '/'
+        # diskSlot[0] - JBOD, 0 or FF is RAID, others are JBOD ID
+        # diskSlot[1] - slot number
+        # Get Long latency
+        if (([float]$diskBlocks[$Rmax] -ge $LongReadLatency) -or ($LongWriteLatency -ne 0 -and [float]$diskBlocks[$Wmax] -ge $LongWriteLatency)) {
+          Update-Slot-Statistics -DiskSlotMap $CurrStatisticsOfSlot -Id $diskBlocks[$PD] -Num 1
+          $NumOfGroupLatency++
+          if ($numOfMatchedInSystem -eq 0) {
+            $logList.Add($dhioFile)
+            $logList.Add("_PD_Slot_LD  R_MB/s__IO/s___ms/io____max  W_MB/s__IO/s___ms/io____max   _seek___(max)  idle qd S% B%")
+          }
+          if ($CurrentTimeStr -ne "") {
+            Write-Verbose "$($CurrentTimeStr)"
+            $logList.Add($CurrentTimeStr)
+            $CurrentTimeStr = ""
+          }
+          $logList.Add($match.Line)
+          Write-Verbose "$($match.Line)"
+          $numOfMatched++
+          $numOfMatchedInSystem++
+        }
       }
     }
   }
-
-
+  catch {
+    Write-Host "An error occurred:"
+    Write-Host $_
+  }
 }
+Dump-Slot-Statistics -DiskSlotMap $StatisticsOfSlot
+
 if ($numOfMatched -gt 0) {
   $logList | Out-File -FilePath $DisklogFile -Encoding utf8
 }
+
+$StatisticsOfSlot | Sort-Object ID | Select-Object ID, HighLatency | Format-Table -AutoSize |
+Out-File -FilePath $DisklogFile -Append -Encoding utf8
+

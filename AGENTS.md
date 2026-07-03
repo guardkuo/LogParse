@@ -9,6 +9,7 @@ Key scripts:
 - `MediaErrorPattern.ps1`: Contains regex patterns for media error detection
 - `searchfile.ps1`: Creates file lists for analysis
 - `log.ps1`: Utility logging functions
+- `dhioParse.ps1`: Analyzer dhio file and find a disk that has long latency
 
 ## Execution Instructions
 
@@ -22,6 +23,7 @@ All scripts are PowerShell (.ps1) files and require PowerShell 7.1+:
 .\LogParseCfg.ps1  # Note: This is a configuration file, not executable standalone
 .\MediaErrorPattern.ps1  # Pattern definitions, not standalone executable
 .\log.ps1  # Utility functions
+.\dhioParse.ps1  # Analyzer dhio file
 ```
 
 ### Typical Workflow
