@@ -34,9 +34,13 @@ foreach ($file in $Folder) {
     Write-Verbose "Search $($file) is finished！Find $($results.Count) files"
     Write-Verbose "Results are saved to: $outputFile"
   }
-  else {
-    Write-Verbose "No File is found。"
-  }
 }
 
-pause
+if (-not (Test-Path $outputFile)) {
+    Write-Warning "檔案不存在: $outputFile"
+    return $null
+}
+
+return $outputFile
+
+

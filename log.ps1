@@ -88,21 +88,21 @@ function Backup-Log-File($FileInfo, $SerialNumber, $BaseName, $TimeStamp, $OutPu
   $SrcFileName = "$SerialNumber.deb.0.5.full.txt"
   $SrcPath = Join-Path $FileInfo.DirectoryName $SrcFileName
   if (Test-Path $SrcPath) {
-    $debFileInfo = Get-Item $SrcPath
+    $debFileInfo = Get-Item -LiteralPath $SrcPath
     $debbaseName = $debFileInfo.BaseName # 不含副檔名的檔名
     Copy-Item -Path $SrcPath -Destination (Join-Path $OutPutDir "${debbaseName}_${TimeStamp}.txt") -Force
   }
   $SrcFileName = "$SerialNumber.evt.0.5.full.txt"
   $SrcPath = Join-Path $FileInfo.DirectoryName $SrcFileName
   if (Test-Path $SrcPath) {
-    $debFileInfo = Get-Item $SrcPath
+    $debFileInfo = Get-Item -LiteralPath $SrcPath
     $debbaseName = $debFileInfo.BaseName # 不含副檔名的檔名
     Copy-Item -Path $SrcPath -Destination (Join-Path $OutPutDir "${debbaseName}_${TimeStamp}.txt") -Force
   }
   $SrcFileName = "$SerialNumber.evt+deb.0.5.full.txt"
   $SrcPath = Join-Path $FileInfo.DirectoryName $SrcFileName
   if (Test-Path $SrcPath) {
-    $debFileInfo = Get-Item $SrcPath
+    $debFileInfo = Get-Item -LiteralPath $SrcPath
     $debbaseName = $debFileInfo.BaseName # 不含副檔名的檔名
     Copy-Item -Path $SrcPath -Destination (Join-Path $OutPutDir "${debbaseName}_${TimeStamp}.txt") -Force
   }
